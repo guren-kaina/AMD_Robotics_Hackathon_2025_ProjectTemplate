@@ -46,7 +46,7 @@ record:
 		--dataset.episode_time_s=30 \
 		--dataset.reset_time_s=15 \
 		--dataset.single_task="pickup figure from yellow to red" \
-		--dataset.root=$$HOME/so101_dataset_hogehoge/ \
+		--dataset.root=$$HOME/so101_dataset/$(shell date +'%Y%m%d-%H%M%S')/ \
 		--dataset.push_to_hub=false
 
 .PHONY: inference-act
