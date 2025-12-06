@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Dict, Literal
 
 import google.generativeai as genai
+from obsws_python import ReqClient
+from obsws_python.error import OBSSDKError
 from google.ai.generativelanguage import Schema, Type
 
 BoardMark = Literal["◯", "×", "□"]
@@ -43,6 +45,9 @@ RESPONSE_SCHEMA = Schema(
     required=["current_status", "next_action"],
 )
 
+OBS_SCENE_NAME = "シーン"
+CELL_SOURCE_NAMES = [str(i) for i in range(1, 10)]
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -72,6 +77,23 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=512,
         help="Upper bound for response tokens.",
+    )
+    parser.add_argument(
+        "--obs-host",
+        default="localhost",
+        help="OBS websocket host to apply the suggested move (if omitted, OBS is not updated).",
+    )
+    parser.add_argument(
+        "--obs-port",
+        type=int,
+        default=4455,
+        help="OBS websocket port (default: 4455).",
+    )
+    parser.add_argument(
+        "--obs-timeout",
+        type=float,
+        default=5.0,
+        help="OBS websocket timeout seconds (default: 5).",
     )
     return parser.parse_args()
 
@@ -131,6 +153,21 @@ def generate_plan(
     return parsed
 
 
+def apply_obs_next_action(next_action: int, host: str, port: int, timeout: float) -> None:
+    target_source = str(next_action)
+    try:
+        with ReqClient(host=host, port=port, password="", timeout=timeout) as client:
+            for source_name in CELL_SOURCE_NAMES:
+                item = client.get_scene_item_id(OBS_SCENE_NAME, source_name)
+                client.set_scene_item_enabled(
+                    OBS_SCENE_NAME,
+                    item.scene_item_id,
+                    source_name == target_source,
+                )
+    except (OBSSDKError, ConnectionRefusedError, TimeoutError) as exc:
+        raise RuntimeError(f"OBS update failed: {exc}") from exc
+
+
 def main() -> int:
     args = parse_args()
     if not args.api_key:
@@ -148,6 +185,16 @@ def main() -> int:
         return 1
     sys.stdout.write(json.dumps(plan, ensure_ascii=False, indent=2))
     sys.stdout.write("\n")
+    if args.obs_host:
+        try:
+            apply_obs_next_action(plan["next_action"], args.obs_host, args.obs_port, args.obs_timeout)
+            sys.stdout.write(
+                f"OBS updated: scene '{OBS_SCENE_NAME}' shows source '{plan['next_action']}' "
+                "and hides the other cells.\n"
+            )
+        except Exception as exc:
+            sys.stderr.write(f"Failed to apply OBS changes: {exc}\n")
+            return 1
     return 0
 
 

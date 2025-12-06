@@ -37,3 +37,12 @@ The tool prints JSON like:
   "next_action": 3
 }
 ```
+
+### Apply the suggested move to OBS
+If you pass `--obs-host`, the tool connects to OBS websocket (default port `4455`, no password) and updates scene `シーン`: it shows only the suggested cell source (`"1"`–`"9"`) and hides the other cell sources.
+```bash
+uv run tic_tac_toe_planner.py --image image_sample.png --obs-host 100.76.113.92
+```
+Assumptions for OBS:
+- Scene name is fixed to `シーン`.
+- Cell sources are named `"1"`〜`"9"` (string). The tool turns on only the suggested source; the others are turned off.
