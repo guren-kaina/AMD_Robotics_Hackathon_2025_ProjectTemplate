@@ -1,9 +1,9 @@
-# AMD_Robotics_Hackathon_2025_[Project Name]
-<You coulde use the task you did in Mission2 as the project name, since Mission 1 is unified task for every team>
+# AMD_Robotics_Hackathon_2025_Kaina-TTT
 
-**Title:** AMD_RoboticHackathon2025-[Your Work of Mission2]
+**Title:** AMD_RoboticHackathon2025-Kaina-TTT
 
-**Team:** The name of your Team and Members
+**Team:** Kaina
+**Members** [Ryo Igarashi](https://github.com/igaryo0506), [Kenta Mori](https://github.com/zoncoen), [Shota Iwami](https://github.com/BIwashi), [Gen Shu](https://github.com/genkey6)
 
 **Summary** <of your task>
 ...
