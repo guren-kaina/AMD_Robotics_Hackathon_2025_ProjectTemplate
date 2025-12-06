@@ -1,0 +1,14 @@
+# Python / uv
+.venv/
+__pycache__/
+*.py[cod]
+.python-version
+.uv/
+.uv_cache/
+*.egg-info/
+
+# OS / editors
+.DS_Store
+*.swp
+.idea/
+.vscode/
