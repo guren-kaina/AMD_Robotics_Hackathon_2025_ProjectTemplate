@@ -3,6 +3,7 @@ import json
 import mimetypes
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Dict, Literal
 
@@ -59,8 +60,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "-i",
         "--image",
-        required=True,
+        required=False,
         help="Path to the tic-tac-toe board image.",
+    )
+    parser.add_argument(
+        "--stream-url",
+        help="Video stream URL or device path to capture frames from when using --think-interval.",
+    )
+    parser.add_argument(
+        "--think-interval",
+        type=float,
+        help="Seconds between captures from --stream-url. When set, the tool keeps thinking in a loop.",
     )
     parser.add_argument(
         "--api-key",
@@ -113,6 +123,12 @@ def load_image_part(image_path: Path):
     return {"mime_type": mime_type, "data": data}
 
 
+def build_image_part_from_bytes(image_bytes: bytes, mime_type: str = "image/png") -> Dict[str, object]:
+    if not image_bytes:
+        raise ValueError("Image data is empty.")
+    return {"mime_type": mime_type, "data": image_bytes}
+
+
 def validate_response(payload: Dict[str, object]) -> None:
     if "current_status" not in payload or "next_action" not in payload:
         raise ValueError("Response missing required keys.")
@@ -130,7 +146,7 @@ def validate_response(payload: Dict[str, object]) -> None:
 
 
 def generate_plan(
-    image_path: Path, api_key: str, model_name: str, max_output_tokens: int
+    image_part: Dict[str, object], api_key: str, model_name: str, max_output_tokens: int
 ) -> Dict[str, object]:
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel(
@@ -142,7 +158,6 @@ def generate_plan(
         },
     )
     prompt = build_prompt()
-    image_part = load_image_part(image_path)
     response = model.generate_content([prompt, image_part])
     text = response.text
     try:
@@ -168,14 +183,96 @@ def apply_obs_next_action(next_action: int, host: str, port: int, timeout: float
         raise RuntimeError(f"OBS update failed: {exc}") from exc
 
 
+def capture_frame_from_stream(stream_url: str) -> bytes:
+    try:
+        import cv2  # type: ignore
+    except ImportError as exc:  # pragma: no cover - optional dependency
+        raise RuntimeError(
+            "Capturing from a stream requires opencv-python-headless (install via uv/pip)."
+        ) from exc
+
+    cap = cv2.VideoCapture(stream_url)
+    if not cap.isOpened():
+        cap.release()
+        raise RuntimeError(f"Failed to open video stream: {stream_url}")
+    ok, frame = cap.read()
+    cap.release()
+    if not ok or frame is None:
+        raise RuntimeError("Failed to read a frame from the video stream.")
+    ok, buffer = cv2.imencode(".png", frame)
+    if not ok:
+        raise RuntimeError("Failed to encode frame to PNG.")
+    return buffer.tobytes()
+
+
+def stream_think_loop(
+    stream_url: str,
+    think_interval: float,
+    api_key: str,
+    model_name: str,
+    max_output_tokens: int,
+    obs_host: str,
+    obs_port: int,
+    obs_timeout: float,
+) -> int:
+    while True:
+        loop_started = time.time()
+        try:
+            frame_bytes = capture_frame_from_stream(stream_url)
+            plan = generate_plan(
+                image_part=build_image_part_from_bytes(frame_bytes),
+                api_key=api_key,
+                model_name=model_name,
+                max_output_tokens=max_output_tokens,
+            )
+            sys.stdout.write(json.dumps(plan, ensure_ascii=False, indent=2))
+            sys.stdout.write("\n")
+            if obs_host:
+                apply_obs_next_action(plan["next_action"], obs_host, obs_port, obs_timeout)
+                sys.stdout.write(
+                    f"OBS updated: scene '{OBS_SCENE_NAME}' shows source '{plan['next_action']}' "
+                    "and hides the other cells.\n"
+                )
+            sys.stdout.flush()
+        except KeyboardInterrupt:
+            return 130
+        except Exception as exc:
+            sys.stderr.write(f"[think-loop] Error: {exc}\n")
+            sys.stderr.flush()
+        elapsed = time.time() - loop_started
+        sleep_for = max(0.0, think_interval - elapsed)
+        if sleep_for:
+            time.sleep(sleep_for)
+
+
 def main() -> int:
     args = parse_args()
     if not args.api_key:
         sys.stderr.write("Google API key is required (use --api-key or set GOOGLE_API_KEY).\n")
         return 1
+    if args.think_interval is not None:
+        if args.think_interval <= 0:
+            sys.stderr.write("--think-interval must be positive seconds.\n")
+            return 1
+        if not args.stream_url:
+            sys.stderr.write("--think-interval requires --stream-url to capture frames.\n")
+            return 1
+        return stream_think_loop(
+            stream_url=args.stream_url,
+            think_interval=args.think_interval,
+            api_key=args.api_key,
+            model_name=args.model,
+            max_output_tokens=args.max_output_tokens,
+            obs_host=args.obs_host,
+            obs_port=args.obs_port,
+            obs_timeout=args.obs_timeout,
+        )
+    if not args.image:
+        sys.stderr.write("--image is required when --think-interval is not set.\n")
+        return 1
     try:
         plan = generate_plan(
-            image_path=Path(args.image),
+            image_part=load_image_part(Path(args.image)),
             api_key=args.api_key,
             model_name=args.model,
             max_output_tokens=args.max_output_tokens,
