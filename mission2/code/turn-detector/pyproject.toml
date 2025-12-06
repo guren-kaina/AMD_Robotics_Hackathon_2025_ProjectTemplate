@@ -1,0 +1,30 @@
+[project]
+name = "turn-detector"
+version = "0.1.0"
+description = "Detect when tic-tac-toe turns arrive for player × using YOLO and capture a single frame per turn."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "opencv-python>=4.8.1",
+    "ultralytics>=8.3.0",
+    "huggingface-hub>=0.22.0",
+    "transformers>=4.38.0",
+    "torch>=2.1.0",
+    "pillow>=10.0.0",
+    "open-clip-torch>=2.24.0",
+    "torchvision>=0.16.0",
+    "numpy>=1.26.0",
+]
+
+[project.scripts]
+turn-detector = "turn_detector:main"
+
+[tool.uv]
+package = true
+
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["turn_detector"]
