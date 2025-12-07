@@ -79,3 +79,15 @@ inference-pi:
 		--robot.cameras="{top: {type: opencv, index_or_path: '/dev/video12', width: 640, height: 480, fps: 30}, side: {type: opencv, index_or_path: '/dev/side-camera-1', width: 640, height: 480, fps: 30}, side2: {type: opencv, index_or_path: '/dev/side-camera-2', width: 640, height: 480, fps: 30}, glipper: {type: opencv, index_or_path: '/dev/arm-camera', width: 640, height: 480, fps: 30}}"  \
 		--task="pickup figure from yellow to red" \
 		--duration=240
+
+.PHONY: run-ttt-pipeline
+run-ttt-pipeline:
+	cd mission2/code/ttt-pipeline && uv run python3 main.py \
+		--source 10 \
+		--weights ../tic_tac_toe_overlay/models/cell_grid.pt \
+	    --planner-model Qwen/Qwen2.5-7B-Instruct \
+		--planner-engine remote \
+		--output-camera /dev/video12 \
+		--interval 5 \
+		--display \
+		--save-state latest_board.json
