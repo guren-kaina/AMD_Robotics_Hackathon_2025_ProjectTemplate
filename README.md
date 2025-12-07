@@ -68,8 +68,10 @@ A robotic arm that plays Tic-Tac-Toe. It uses a camera to see the board, a YOLOv
 - *Real world application of your mission*
 
 ### 2. Creativity
-- *What is novel or unique in your approach?*
-- *Innovation in design, methodology, or application*
+- Robust perception: YOLOv8 detects the 3x3 grid and cell states (X/O/empty) from mostly synthetic data with a few real labels, so camera angle or board design changes can be adapted quickly.
+- Strategy via text-only LLM: the board is serialized to text and a small local LLM plans the next move; difficulty/style can be prompted without any vision-language model.
+- Simple control handoff: the pipeline overlays the chosen cell as a red mask on the live feed; the arm only needs to follow that mask to place a piece, even if the board position shifts.
+- Generalizable architecture: the same grid-detect → text-plan → overlay pattern can be retargeted to other small-board games by swapping the synthetic template and prompt.
 
 ### 3. Technical implementations
 - *Teleoperation / Dataset capture*
@@ -116,6 +118,7 @@ The strength of this project lies in its highly modular and generalizable archit
     - https://huggingface.co/datasets/guren-kaina/tic-tac-toe-2
     - https://huggingface.co/datasets/guren-kaina/tic-tac-toe-3
     - https://huggingface.co/datasets/guren-kaina/tic-tac-toe-4
+    - https://huggingface.co/guren-kaina/tic-tac-toe-cell-detector
 - *URL of your model in Hugging Face*
     - https://huggingface.co/guren-kaina/tic-tac-toe-1
     - https://huggingface.co/guren-kaina/act-tic-tac-toe-2
@@ -124,6 +127,7 @@ The strength of this project lies in its highly modular and generalizable archit
     - https://huggingface.co/guren-kaina/pi05_tic-tac-toe-3
     - https://huggingface.co/guren-kaina/act-tic-tac-toe-4
     - https://huggingface.co/guren-kaina/pi05_tic-tac-toe-4
+    - https://huggingface.co/datasets/guren-kaina/tic-tac-toe-board-dataset
 - *Link to a blog post describing your work*
     - soon
 
