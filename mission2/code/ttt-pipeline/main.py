@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 from pathlib import Path
@@ -124,8 +125,14 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--planner-model",
-        default="Qwen/Qwen3-4B-Instruct-2507",
-        help="Model name/path for planner local inference (default: Qwen/Qwen3-4B-Instruct-2507).",
+        default="Qwen/Qwen2.5-7B-Instruct",
+        help="Model name/path for planner inference (default: Qwen/Qwen2.5-7B-Instruct).",
+    )
+    parser.add_argument(
+        "--planner-engine",
+        choices=["remote", "local"],
+        default="remote",
+        help="Planner engine: 'remote' (HF Inference API) or 'local' transformers (default: remote).",
     )
     parser.add_argument(
         "--planner-temperature",
@@ -138,6 +145,16 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=256,
         help="Max tokens for planner LLM.",
+    )
+    parser.add_argument(
+        "--planner-hf-token",
+        default=None,
+        help="Hugging Face token for remote planner calls (falls back to HF_TOKEN/HUGGINGFACEHUB_API_TOKEN).",
+    )
+    parser.add_argument(
+        "--planner-hf-endpoint",
+        default=None,
+        help="Optional custom HF Inference endpoint URL for the planner.",
     )
     parser.add_argument(
         "--display",
@@ -269,6 +286,11 @@ def main() -> int:
                                 model=args.planner_model,
                                 temperature=args.planner_temperature,
                                 max_output_tokens=args.planner_max_tokens,
+                                use_remote=args.planner_engine == "remote",
+                                hf_token=args.planner_hf_token
+                                or os.getenv("HF_TOKEN")
+                                or os.getenv("HUGGINGFACEHUB_API_TOKEN"),
+                                hf_endpoint=args.planner_hf_endpoint,
                             )
                             target_bbox = board_state.bbox_for_cell(planner_result.next_action)
                             log_board_change(board_state, planner_result)
