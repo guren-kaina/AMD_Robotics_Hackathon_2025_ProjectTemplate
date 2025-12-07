@@ -83,8 +83,7 @@ A robotic arm that plays Tic-Tac-Toe. It uses a camera to see the board, a YOLOv
         - To avoid mixing learning data and reducing accuracy, move directly and accurately to the target area.
         - Add Target Bounding Box for Inference using OBS tool.
             <video controls width="360px">
-                <source src="./media/TeleOperation/Teleop.mp4" type="video/mp4">
-                Your browser does not support the video tag.
+            <source src="./media/TeleOperation/Teleop.mp4" type="video/mp4">
             </video>
             <img src="./media/TeleOperation/Rerun.PNG" style="margin-right: 10px; width: 360px;">
             <img src="./media/TeleOperation/OBS.PNG" style="margin-right: 10px; width: 360px;">
