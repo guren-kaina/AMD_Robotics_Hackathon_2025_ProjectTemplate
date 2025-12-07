@@ -9,6 +9,7 @@ Capture a video stream, detect the tic-tac-toe board with `tic_tac_toe_overlay`,
   cd mission2/code/ttt-pipeline
   uv sync
   ```
+- Ensure the planner's local model (default `Qwen/Qwen3-4B-Instruct-2507`) is available in your Hugging Face cache or downloaded locally.
 - Prepare overlay weights (`cell_grid.pt`) with `mission2/code/tic_tac_toe_overlay/main.py` (training is triggered automatically there when weights are missing).
 
 ## Usage
@@ -18,7 +19,7 @@ cd mission2/code/ttt-pipeline
 uv run python3 main.py \
   --source 0 \
   --weights ../tic_tac_toe_overlay/models/cell_grid.pt \
-  --planner-model Qwen/Qwen2.5-7B-Instruct \
+  --planner-model Qwen/Qwen3-4B-Instruct-2507 \
   --output-camera /dev/video2 \
   --interval 5 \
   --display \
@@ -32,7 +33,7 @@ Options (important ones):
 - `--source`: camera index or video file path.
 - `--output-camera`: camera index or device path to publish the masked stream (default 1).
 - `--interval`: seconds between board polls (default 5s).
-- `--planner-model`, `--planner-temperature`, `--planner-max-tokens`, `--planner-hf-token`: Hugging Face LLM controls for the planner.
+- `--planner-model`, `--planner-temperature`, `--planner-max-tokens`: local LLM controls for the planner (default `Qwen/Qwen3-4B-Instruct-2507`).
 - `--display`: show a preview window (`q` to quit).
 - `--save-state`: save the most recent detected board JSON (cell labels + pixel boxes).
 - Preprocessing knobs mirror the overlay script (`--grayscale`, `--clahe`, `--contrast-alpha/beta`, `--conf`, `--max-det`).
