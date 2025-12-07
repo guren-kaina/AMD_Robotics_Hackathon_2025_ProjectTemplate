@@ -80,6 +80,8 @@ Tic-tac-toe solver arm that reads the board from a top camera, plans the next mo
 - *Training*
     - The powerful MI300X accelerator enabled fast training with larger batch sizes, significantly speeding up the model's learning process. 
 - *Inference*
+    - **Inference with Pi0.5 Model using Real Time Chunking (RTC)**
+        - The Pi0.5 model leverages Real Time Chunking (RTC), an evolution of Action Chunking Transformers (ACT), to infer and execute robot movements in meaningful "chunks." Instead of frame-by-frame action decisions, RTC predicts entire action sequences (e.g., "grasp → lift → move → place") at once. This significantly reduces end-to-end latency, enables smoother, more natural manipulation, and optimizes computational load by avoiding per-frame inference. This approach, combined with AMD's high-performance hardware, ensures fast and seamless Tic-tac-toe gameplay.
 
 ### 4. Ease of use
 - *How generalizable is your implementation across tasks or environments?*
