@@ -655,6 +655,7 @@ name = "tic-tac-toe-planner"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "huggingface-hub" },
     { name = "obsws-python" },
     { name = "torch" },
     { name = "transformers" },
@@ -662,6 +663,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "huggingface-hub", specifier = ">=0.25.0" },
     { name = "obsws-python", specifier = ">=1.6.0" },
     { name = "torch", specifier = ">=2.2.0" },
     { name = "transformers", specifier = ">=4.43.0" },
