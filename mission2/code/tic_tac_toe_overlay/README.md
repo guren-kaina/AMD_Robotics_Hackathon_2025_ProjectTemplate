@@ -6,14 +6,14 @@ Requires Python 3.10.
 
 ```bash
 # 依存インストール（uv利用例）
-uv pip install -r pyproject.toml
+uv sync
 ```
 
 If offline, preinstall `ultralytics` and `torch`.
 
 ## Usage
 ```bash
-python main.py \
+uv run python3 main.py \
   --image input.jpg \        # 任意の単一画像。pipeline では各フレームに同等処理を適用
   --output overlay.jpg \     # オーバーレイ不要なら --skip-overlay
   --state-json board_state.json \
