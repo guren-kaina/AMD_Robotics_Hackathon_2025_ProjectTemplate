@@ -16,29 +16,6 @@ import subprocess
 
 W, H, FPS = 640, 480, 30
 
-ffmpeg = subprocess.Popen(
-    [
-        "ffmpeg",
-        "-y",
-        "-f",
-        "rawvideo",
-        "-pix_fmt",
-        "bgr24",
-        "-s",
-        f"{W}x{H}",
-        "-r",
-        str(FPS),
-        "-i",
-        "-",
-        "-f",
-        "v4l2",
-        "-pix_fmt",
-        "yuv420p",
-        "/dev/video12",
-    ],
-    stdin=subprocess.PIPE,
-)
-
 # Add sibling projects to path for reuse
 CODE_ROOT = Path(__file__).resolve().parents[1]
 OVERLAY_ROOT = CODE_ROOT / "tic_tac_toe_overlay"
@@ -195,6 +172,45 @@ def open_camera_sink(camera_target: str | int | None, fps: float, width: int, he
     return None
 
 
+def start_ffmpeg_sink(camera_target: str | int | None, width: int, height: int, fps: float) -> subprocess.Popen | None:
+    """Spawn ffmpeg to push raw frames into a v4l2 loopback device."""
+    if camera_target is None:
+        return None
+
+    if isinstance(camera_target, int):
+        camera_target = f"/dev/video{camera_target}"
+
+    cmd = [
+        "ffmpeg",
+        "-loglevel",
+        "warning",
+        "-y",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "bgr24",
+        "-s",
+        f"{width}x{height}",
+        "-r",
+        str(int(fps) if fps > 0 else FPS),
+        "-i",
+        "-",
+        "-f",
+        "v4l2",
+        "-pix_fmt",
+        "yuv420p",
+        camera_target,
+    ]
+
+    try:
+        return subprocess.Popen(cmd, stdin=subprocess.PIPE)
+    except FileNotFoundError:
+        sys.stderr.write("[warn] ffmpeg not found; camera streaming disabled.\n")
+    except Exception as exc:  # noqa: BLE001
+        sys.stderr.write(f"[warn] Failed to start ffmpeg sink to {camera_target}: {exc}\n")
+    return None
+
+
 def overlay_cell(frame: np.ndarray, bbox: Tuple[int, int, int, int]) -> np.ndarray:
     x0, y0, x1, y1 = bbox
     red_bgr = (0, 0, 255)  # #ff0000 in BGR order for OpenCV
@@ -225,6 +241,10 @@ def main() -> int:
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     if width <= 0 or height <= 0:
         width, height = 640, 480
+    fps = cap.get(cv2.CAP_PROP_FPS) or FPS
+
+    camera_target = parse_camera_target(args.output_camera)
+    ffmpeg = start_ffmpeg_sink(camera_target, width, height, fps)
 
     model = YOLO(str(args.weights))
     last_state_map = None
@@ -289,8 +309,13 @@ def main() -> int:
             if target_bbox:
                 output_frame = overlay_cell(frame, target_bbox)
 
-            if ffmpeg:
-                ffmpeg.stdin.write(output_frame.tobytes())
+            if ffmpeg and ffmpeg.poll() is None:
+                try:
+                    ffmpeg.stdin.write(output_frame.tobytes())
+                except BrokenPipeError:
+                    sys.stderr.write("[warn] ffmpeg sink closed unexpectedly; disabling output stream.\n")
+                    ffmpeg = None
+
             if args.display:
                 cv2.imshow("tic-tac-toe-pipeline", output_frame)
                 if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -303,6 +328,7 @@ def main() -> int:
         cap.release()
         if ffmpeg:
             ffmpeg.stdin.close()
+            ffmpeg.wait(timeout=2)
         if args.display:
             cv2.destroyAllWindows()
 
