@@ -1,0 +1,247 @@
+_wandb:
+    value:
+        cli_version: 0.21.4
+        e:
+            twcj7l7aenunnzdpbh8cgbfa6wlqdtgm:
+                args:
+                    - --dataset.repo_id=guren-kaina/tic-tac-toe-4
+                    - --policy.type=pi05
+                    - --output_dir=./outputs/pi05_tic-tac-toe-4
+                    - --job_name=pi05_tic-tac-toe-4
+                    - --policy.repo_id=guren-kaina/tic-tac-toe-4-pi05
+                    - --policy.pretrained_path=lerobot/pi05_base
+                    - --policy.compile_model=true
+                    - --policy.gradient_checkpointing=true
+                    - --wandb.enable=true
+                    - --policy.dtype=bfloat16
+                    - --steps=3000
+                    - --policy.scheduler_decay_steps=3000
+                    - --policy.device=cuda
+                    - --batch_size=32
+                cpu_count: 160
+                cpu_count_logical: 160
+                disk:
+                    /:
+                        total: "2162185003008"
+                        used: "1012553084928"
+                executable: /opt/venv/bin/python
+                gpu: AMD Instinct MI300X VF
+                gpu_amd:
+                    - id: "0"
+                      maxPower: "750.0"
+                      mclkRange: 900Mhz - 1300Mhz
+                      model: "0x74b5"
+                      performanceLevel: auto
+                      sclkRange: 500Mhz - 2100Mhz
+                      series: AMD Instinct MI300X VF
+                      sku: M3000100
+                      uniqueId: "0x2b555558145056f2"
+                      vbiosVersion: 113-M3000100-103
+                      vendor: Advanced Micro Devices, Inc. [AMD/ATI]
+                gpu_count: 1
+                host: robotics-jupyter-launcher-4785
+                memory:
+                    total: "2029207171072"
+                os: Linux-6.1.0-39-amd64-x86_64-with-glibc2.39
+                program: /opt/venv/bin/lerobot-train
+                python: CPython 3.12.3
+                root: outputs/pi05_tic-tac-toe-4
+                startedAt: "2025-12-07T03:57:06.713552Z"
+                writerId: twcj7l7aenunnzdpbh8cgbfa6wlqdtgm
+        m: []
+        python_version: 3.12.3
+        t:
+            "1":
+                - 1
+                - 11
+                - 41
+                - 49
+                - 51
+                - 71
+                - 83
+            "2":
+                - 1
+                - 11
+                - 41
+                - 49
+                - 51
+                - 71
+                - 83
+            "3":
+                - 13
+                - 15
+                - 16
+                - 61
+            "4": 3.12.3
+            "5": 0.21.4
+            "6": 4.53.3
+            "10":
+                - 21
+            "12": 0.21.4
+            "13": linux-x86_64
+batch_size:
+    value: 32
+checkpoint_path:
+    value: null
+dataset:
+    value:
+        episodes: null
+        image_transforms:
+            enable: false
+            max_num_transforms: 3
+            random_order: false
+            tfs:
+                affine:
+                    kwargs:
+                        degrees:
+                            - -5
+                            - 5
+                        translate:
+                            - 0.05
+                            - 0.05
+                    type: RandomAffine
+                    weight: 1
+                brightness:
+                    kwargs:
+                        brightness:
+                            - 0.8
+                            - 1.2
+                    type: ColorJitter
+                    weight: 1
+                contrast:
+                    kwargs:
+                        contrast:
+                            - 0.8
+                            - 1.2
+                    type: ColorJitter
+                    weight: 1
+                hue:
+                    kwargs:
+                        hue:
+                            - -0.05
+                            - 0.05
+                    type: ColorJitter
+                    weight: 1
+                saturation:
+                    kwargs:
+                        saturation:
+                            - 0.5
+                            - 1.5
+                    type: ColorJitter
+                    weight: 1
+                sharpness:
+                    kwargs:
+                        sharpness:
+                            - 0.5
+                            - 1.5
+                    type: SharpnessJitter
+                    weight: 1
+        repo_id: guren-kaina/tic-tac-toe-4
+        revision: null
+        root: null
+        streaming: false
+        use_imagenet_stats: true
+        video_backend: torchcodec
+env:
+    value: null
+eval:
+    value:
+        batch_size: 50
+        n_episodes: 50
+        use_async_envs: false
+eval_freq:
+    value: 20000
+job_name:
+    value: pi05_tic-tac-toe-4
+log_freq:
+    value: 200
+num_workers:
+    value: 4
+optimizer:
+    value:
+        betas:
+            - 0.9
+            - 0.95
+        eps: 1e-08
+        grad_clip_norm: 1
+        lr: 2.5e-05
+        type: adamw
+        weight_decay: 0.01
+output_dir:
+    value: outputs/pi05_tic-tac-toe-4
+policy:
+    value:
+        action_expert_variant: gemma_300m
+        chunk_size: 50
+        compile_mode: max-autotune
+        compile_model: true
+        device: cuda
+        dtype: bfloat16
+        empty_cameras: 0
+        gradient_checkpointing: true
+        image_resolution:
+            - 224
+            - 224
+        license: null
+        max_action_dim: 32
+        max_period: 4
+        max_state_dim: 32
+        min_period: 0.004
+        n_action_steps: 50
+        n_obs_steps: 1
+        normalization_mapping:
+            ACTION: QUANTILES
+            STATE: QUANTILES
+            VISUAL: IDENTITY
+        num_inference_steps: 10
+        optimizer_betas:
+            - 0.9
+            - 0.95
+        optimizer_eps: 1e-08
+        optimizer_grad_clip_norm: 1
+        optimizer_lr: 2.5e-05
+        optimizer_weight_decay: 0.01
+        paligemma_variant: gemma_2b
+        pretrained_path: lerobot/pi05_base
+        private: null
+        push_to_hub: true
+        repo_id: guren-kaina/tic-tac-toe-4-pi05
+        scheduler_decay_lr: 2.5e-06
+        scheduler_decay_steps: 3000
+        scheduler_warmup_steps: 1000
+        tags: null
+        time_sampling_beta_alpha: 1.5
+        time_sampling_beta_beta: 1
+        time_sampling_offset: 0.001
+        time_sampling_scale: 0.999
+        tokenizer_max_length: 200
+        type: pi05
+        use_amp: false
+resume:
+    value: false
+save_checkpoint:
+    value: true
+save_freq:
+    value: 20000
+scheduler:
+    value:
+        decay_lr: 2.5e-06
+        num_decay_steps: 3000
+        num_warmup_steps: 1000
+        peak_lr: 2.5e-05
+        type: cosine_decay_with_warmup
+seed:
+    value: 1000
+steps:
+    value: 3000
+use_policy_training_preset:
+    value: true
+wandb:
+    value:
+        disable_artifact: false
+        enable: true
+        entity: null
+        mode: null
+        notes: null
+        project: lerobot
+        run_id: null

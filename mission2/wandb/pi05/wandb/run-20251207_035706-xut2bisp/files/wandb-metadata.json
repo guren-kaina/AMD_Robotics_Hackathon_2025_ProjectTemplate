@@ -1,0 +1,54 @@
+{
+  "os":  "Linux-6.1.0-39-amd64-x86_64-with-glibc2.39",
+  "python":  "CPython 3.12.3",
+  "startedAt":  "2025-12-07T03:57:06.713552Z",
+  "args":  [
+    "--dataset.repo_id=guren-kaina/tic-tac-toe-4",
+    "--policy.type=pi05",
+    "--output_dir=./outputs/pi05_tic-tac-toe-4",
+    "--job_name=pi05_tic-tac-toe-4",
+    "--policy.repo_id=guren-kaina/tic-tac-toe-4-pi05",
+    "--policy.pretrained_path=lerobot/pi05_base",
+    "--policy.compile_model=true",
+    "--policy.gradient_checkpointing=true",
+    "--wandb.enable=true",
+    "--policy.dtype=bfloat16",
+    "--steps=3000",
+    "--policy.scheduler_decay_steps=3000",
+    "--policy.device=cuda",
+    "--batch_size=32"
+  ],
+  "program":  "/opt/venv/bin/lerobot-train",
+  "root":  "outputs/pi05_tic-tac-toe-4",
+  "host":  "robotics-jupyter-launcher-4785",
+  "executable":  "/opt/venv/bin/python",
+  "cpu_count":  160,
+  "cpu_count_logical":  160,
+  "gpu":  "AMD Instinct MI300X VF",
+  "gpu_count":  1,
+  "disk":  {
+    "/":  {
+      "total":  "2162185003008",
+      "used":  "1012553084928"
+    }
+  },
+  "memory":  {
+    "total":  "2029207171072"
+  },
+  "gpu_amd":  [
+    {
+      "id":  "0",
+      "uniqueId":  "0x2b555558145056f2",
+      "vbiosVersion":  "113-M3000100-103",
+      "performanceLevel":  "auto",
+      "maxPower":  "750.0",
+      "series":  "AMD Instinct MI300X VF",
+      "model":  "0x74b5",
+      "vendor":  "Advanced Micro Devices, Inc. [AMD/ATI]",
+      "sku":  "M3000100",
+      "sclkRange":  "500Mhz - 2100Mhz",
+      "mclkRange":  "900Mhz - 1300Mhz"
+    }
+  ],
+  "writerId":  "twcj7l7aenunnzdpbh8cgbfa6wlqdtgm"
+}

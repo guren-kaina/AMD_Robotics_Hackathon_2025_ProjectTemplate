@@ -1,0 +1,98 @@
+INFO 2025-12-07 03:57:07 db_utils.py:102 [1m[34mLogs will be synced with wandb.[0m
+INFO 2025-12-07 03:57:07 db_utils.py:103 Track this run --> [1m[33mhttps://wandb.ai/igaryo/lerobot/runs/xut2bisp[0m
+INFO 2025-12-07 03:57:07 ot_train.py:183 Creating dataset
+info.json: 4.50kB [00:00, 8.92MB/s]                       | 0/5 [00:00<?, ?it/s]
+stats.json: 19.1kB [00:00, 74.5MB/s]
+meta/tasks.parquet: 100%|██████████████████| 2.26k/2.26k [00:00<00:00, 8.28kB/s]
+meta/episodes/chunk-000/file-000.parquet: 100%|█| 243k/243k [00:00<00:00, 682kB/
+meta/episodes/chunk-000/file-001.parquet: 100%|█| 87.1k/87.1k [00:00<00:00, 263k
+Fetching 5 files: 100%|███████████████████████████| 5/5 [00:00<00:00,  8.84it/s]
+.gitattributes: 2.46kB [00:00, 1.99MB/s]                 | 0/20 [00:00<?, ?it/s]
+data/chunk-000/file-001.parquet: 100%|███████| 209k/209k [00:00<00:00, 1.79MB/s]
+data/chunk-000/file-000.parquet: 100%|███████| 923k/923k [00:00<00:00, 7.67MB/s]
+videos/observation.images.glipper/chunk-(…): 100%|█| 33.1M/33.1M [00:00<00:00, 1
+videos/observation.images.side/chunk-000(…): 100%|█| 51.8M/51.8M [00:00<00:00, 6
+videos/observation.images.side2/chunk-00(…): 100%|█| 120M/120M [00:01<00:00, 111
+videos/observation.images.side2/chunk-00(…): 100%|█| 117M/117M [00:01<00:00, 100
+videos/observation.images.glipper/chunk-(…): 100%|█| 170M/170M [00:01<00:00, 123
+videos/observation.images.side2/chunk-00(…): 100%|█| 203M/203M [00:01<00:00, 149
+videos/observation.images.side/chunk-000(…): 100%|█| 207M/207M [00:01<00:00, 147
+videos/observation.images.side2/chunk-00(…): 100%|█| 199M/199M [00:01<00:00, 139
+videos/observation.images.top/chunk-000/(…): 100%|█| 32.9M/32.9M [00:00<00:00, 1
+videos/observation.images.top/chunk-000/(…): 100%|█| 210M/210M [00:01<00:00, 162
+videos/observation.images.top/chunk-000/(…): 100%|█| 209M/209M [00:01<00:00, 184
+videos/observation.images.top/chunk-000/(…): 100%|█| 104M/104M [00:01<00:00, 100
+Fetching 20 files: 100%|████████████████████████| 20/20 [00:02<00:00,  7.38it/s]
+INFO 2025-12-07 03:57:11 ot_train.py:202 Creating policyM/199M [00:01<00:00, 170
+INFO 2025-12-07 03:57:47 ing_pi05.py:549 Enabled gradient checkpointing for PI05Pytorch model
+The PI05 model is a direct port of the OpenPI implementation.
+This implementation follows the original OpenPI structure for compatibility.
+Original implementation: https://github.com/Physical-Intelligence/openpi
+Loading model from: lerobot/pi05_base
+✓ Loaded state dict from model.safetensors
+WARNING 2025-12-07 03:57:47 ng_pi05.py:1022 Vision embedding key might need handling: paligemma_with_expert.paligemma.model.vision_tower.vision_model.embeddings.patch_embedding.bias
+WARNING 2025-12-07 03:57:47 ng_pi05.py:1022 Vision embedding key might need handling: paligemma_with_expert.paligemma.model.vision_tower.vision_model.embeddings.patch_embedding.weight
+Remapped: action_in_proj.bias -> model.action_in_proj.bias
+Remapped: action_in_proj.weight -> model.action_in_proj.weight
+Remapped: action_out_proj.bias -> model.action_out_proj.bias
+Remapped: action_out_proj.weight -> model.action_out_proj.weight
+Remapped: paligemma_with_expert.gemma_expert.lm_head.weight -> model.paligemma_with_expert.gemma_expert.lm_head.weight
+Remapped: paligemma_with_expert.gemma_expert.model.layers.0.input_layernorm.dense.bias -> model.paligemma_with_expert.gemma_expert.model.layers.0.input_layernorm.dense.bias
+Remapped: paligemma_with_expert.gemma_expert.model.layers.0.input_layernorm.dense.weight -> model.paligemma_with_expert.gemma_expert.model.layers.0.input_layernorm.dense.weight
+Remapped: paligemma_with_expert.gemma_expert.model.layers.0.mlp.down_proj.weight -> model.paligemma_with_expert.gemma_expert.model.layers.0.mlp.down_proj.weight
+Remapped: paligemma_with_expert.gemma_expert.model.layers.0.mlp.gate_proj.weight -> model.paligemma_with_expert.gemma_expert.model.layers.0.mlp.gate_proj.weight
+Remapped: paligemma_with_expert.gemma_expert.model.layers.0.mlp.up_proj.weight -> model.paligemma_with_expert.gemma_expert.model.layers.0.mlp.up_proj.weight
+Remapped 812 state dict keys
+Warning: Could not remap state dict keys: Error(s) in loading state_dict for PI05Policy:
+	Missing key(s) in state_dict: "model.paligemma_with_expert.paligemma.model.language_model.embed_tokens.weight".
+INFO 2025-12-07 03:57:51 ot_train.py:247 Creating optimizer and scheduler
+INFO 2025-12-07 03:57:51 ot_train.py:259 [1m[33mOutput dir:[0m outputs/pi05_tic-tac-toe-4
+INFO 2025-12-07 03:57:51 ot_train.py:262 cfg.steps=3000 (3K)
+INFO 2025-12-07 03:57:51 ot_train.py:263 dataset.num_frames=27073 (27K)
+INFO 2025-12-07 03:57:51 ot_train.py:264 dataset.num_episodes=49
+INFO 2025-12-07 03:57:51 ot_train.py:267 Effective batch size: 32 x 1 = 32
+INFO 2025-12-07 03:57:51 ot_train.py:268 num_learnable_params=3616757520 (4B)
+INFO 2025-12-07 03:57:51 ot_train.py:269 num_total_params=3616757520 (4B)
+INFO 2025-12-07 03:57:51 ot_train.py:324 Start offline training on a fixed dataset
+INFO 2025-12-07 04:08:25 ot_train.py:351 step:200 smpl:6K ep:12 epch:0.24 loss:0.209 grdn:2.437 lr:2.5e-06 updt_s:3.136 data_s:0.029
+WARNING 2025-12-07 04:08:25 db_utils.py:141 WandB logging of key "loss_per_dim" was ignored as its type "<class 'list'>" is not handled by this wrapper.
+INFO 2025-12-07 04:18:34 ot_train.py:351 step:400 smpl:13K ep:23 epch:0.47 loss:0.127 grdn:1.742 lr:7.5e-06 updt_s:3.027 data_s:0.015
+WARNING 2025-12-07 04:18:34 db_utils.py:141 WandB logging of key "loss_per_dim" was ignored as its type "<class 'list'>" is not handled by this wrapper.
+INFO 2025-12-07 04:28:43 ot_train.py:351 step:600 smpl:19K ep:35 epch:0.71 loss:0.093 grdn:2.002 lr:1.3e-05 updt_s:3.029 data_s:0.015
+WARNING 2025-12-07 04:28:43 db_utils.py:141 WandB logging of key "loss_per_dim" was ignored as its type "<class 'list'>" is not handled by this wrapper.
+INFO 2025-12-07 04:38:52 ot_train.py:351 step:800 smpl:26K ep:46 epch:0.95 loss:0.076 grdn:1.688 lr:1.8e-05 updt_s:3.027 data_s:0.015
+WARNING 2025-12-07 04:38:52 db_utils.py:141 WandB logging of key "loss_per_dim" was ignored as its type "<class 'list'>" is not handled by this wrapper.
+INFO 2025-12-07 04:49:05 ot_train.py:351 step:1K smpl:32K ep:58 epch:1.18 loss:0.070 grdn:1.330 lr:2.2e-05 updt_s:3.025 data_s:0.036
+WARNING 2025-12-07 04:49:05 db_utils.py:141 WandB logging of key "loss_per_dim" was ignored as its type "<class 'list'>" is not handled by this wrapper.
+INFO 2025-12-07 04:59:17 ot_train.py:351 step:1K smpl:38K ep:70 epch:1.42 loss:0.059 grdn:1.010 lr:1.8e-05 updt_s:3.039 data_s:0.017
+WARNING 2025-12-07 04:59:17 db_utils.py:141 WandB logging of key "loss_per_dim" was ignored as its type "<class 'list'>" is not handled by this wrapper.
+INFO 2025-12-07 05:09:29 ot_train.py:351 step:1K smpl:45K ep:81 epch:1.65 loss:0.053 grdn:1.000 lr:1.6e-05 updt_s:3.039 data_s:0.017
+WARNING 2025-12-07 05:09:29 db_utils.py:141 WandB logging of key "loss_per_dim" was ignored as its type "<class 'list'>" is not handled by this wrapper.
+INFO 2025-12-07 05:19:41 ot_train.py:351 step:2K smpl:51K ep:93 epch:1.89 loss:0.049 grdn:0.993 lr:1.4e-05 updt_s:3.038 data_s:0.017
+WARNING 2025-12-07 05:19:41 db_utils.py:141 WandB logging of key "loss_per_dim" was ignored as its type "<class 'list'>" is not handled by this wrapper.
+INFO 2025-12-07 05:29:57 ot_train.py:351 step:2K smpl:58K ep:104 epch:2.13 loss:0.044 grdn:0.968 lr:1.1e-05 updt_s:3.028 data_s:0.048
+WARNING 2025-12-07 05:29:57 db_utils.py:141 WandB logging of key "loss_per_dim" was ignored as its type "<class 'list'>" is not handled by this wrapper.
+INFO 2025-12-07 05:40:09 ot_train.py:351 step:2K smpl:64K ep:116 epch:2.36 loss:0.042 grdn:0.962 lr:9.2e-06 updt_s:3.041 data_s:0.016
+WARNING 2025-12-07 05:40:09 db_utils.py:141 WandB logging of key "loss_per_dim" was ignored as its type "<class 'list'>" is not handled by this wrapper.
+INFO 2025-12-07 05:50:18 ot_train.py:351 step:2K smpl:70K ep:127 epch:2.60 loss:0.039 grdn:1.006 lr:7.1e-06 updt_s:3.029 data_s:0.015
+WARNING 2025-12-07 05:50:18 db_utils.py:141 WandB logging of key "loss_per_dim" was ignored as its type "<class 'list'>" is not handled by this wrapper.
+INFO 2025-12-07 06:00:28 ot_train.py:351 step:2K smpl:77K ep:139 epch:2.84 loss:0.038 grdn:0.977 lr:5.4e-06 updt_s:3.032 data_s:0.015
+WARNING 2025-12-07 06:00:28 db_utils.py:141 WandB logging of key "loss_per_dim" was ignored as its type "<class 'list'>" is not handled by this wrapper.
+INFO 2025-12-07 06:10:40 ot_train.py:351 step:3K smpl:83K ep:151 epch:3.07 loss:0.038 grdn:1.051 lr:4.0e-06 updt_s:3.018 data_s:0.041
+WARNING 2025-12-07 06:10:40 db_utils.py:141 WandB logging of key "loss_per_dim" was ignored as its type "<class 'list'>" is not handled by this wrapper.
+INFO 2025-12-07 06:20:50 ot_train.py:351 step:3K smpl:90K ep:162 epch:3.31 loss:0.037 grdn:1.073 lr:3.1e-06 updt_s:3.030 data_s:0.015
+WARNING 2025-12-07 06:20:50 db_utils.py:141 WandB logging of key "loss_per_dim" was ignored as its type "<class 'list'>" is not handled by this wrapper.
+INFO 2025-12-07 06:30:59 ot_train.py:351 step:3K smpl:96K ep:174 epch:3.55 loss:0.036 grdn:1.084 lr:2.6e-06 updt_s:3.028 data_s:0.015
+WARNING 2025-12-07 06:30:59 db_utils.py:141 WandB logging of key "loss_per_dim" was ignored as its type "<class 'list'>" is not handled by this wrapper.
+INFO 2025-12-07 06:30:59 ot_train.py:361 Checkpoint policy after step 3000
+INFO 2025-12-07 06:31:51 ot_train.py:430 End of training
+Processing Files (1 / 1)      : 100%|██████████████| 7.47GB / 7.47GB,  181MB/s  
+New Data Upload               : 100%|██████████████| 5.68GB / 5.68GB,  181MB/s  
+  ...-4-pi05/model.safetensors: 100%|██████████████| 7.47GB / 7.47GB            
+INFO 2025-12-07 06:32:39 etrained.py:237 Model pushed to https://huggingface.co/guren-kaina/tic-tac-toe-4-pi05
+Processing Files (1 / 1)      : 100%|██████████████| 9.57kB / 9.57kB,  0.00B/s  
+New Data Upload               : |                  |  0.00B /  0.00B,  0.00B/s  
+  ...zer_processor.safetensors: 100%|██████████████| 9.57kB / 9.57kB
+Processing Files (1 / 1)      : 100%|██████████████| 9.57kB / 9.57kB,  0.00B/s  
+New Data Upload               : |                  |  0.00B /  0.00B,  0.00B/s  
+  ...zer_processor.safetensors: 100%|██████████████| 9.57kB / 9.57kB
