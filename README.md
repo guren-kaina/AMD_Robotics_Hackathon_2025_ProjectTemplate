@@ -110,6 +110,13 @@ The strength of this project lies in its highly modular and generalizable archit
     - **Motion (ACT/Pi0.5)**: The policy models that execute the physical movements. New motions can be taught and integrated without altering the reasoning or perception modules.
 - **Simple Control Interface**: The entire pipeline is orchestrated through a series of straightforward command-line scripts. Users can initiate detection, planning, and the full pipeline with clear and configurable commands, allowing for easy experimentation and integration.
 
+### 5. Future work
+- Multi-view 3D reconstruction: plug in SAM3D (or similar) to build per-frame 3D masks of the movable region across all cameras, then use those masks to filter detections, auto-label difficult views, and boost training accuracy.
+- Token trajectory supervision: include initial token masks in training so the model learns arbitrary start→target moves; pair this with YOLO recognition of piece trays/cases to enable autonomous cleanup and placement workflows.
+- Generalize the pipeline to other board games with richer state: extend class schema, synthetic generation, and overlay logic to handle larger boards, multiple piece types, and turn-based constraints.
+- Active learning loop: auto-surface hard samples (low confidence, mask violations, cross-view inconsistencies) for relabeling, then fine-tune incrementally.
+- Synthetic realism upgrades: domain-randomize illumination, motion blur, occlusions, camera tilt, and table textures to close the sim-to-real gap; add multi-view synthetic renders if available.
+
 ## Additional Links
 *For example, you can provide links to:*
 
