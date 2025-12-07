@@ -5,7 +5,7 @@ Detect the 3x3 tic-tac-toe cells in an input frame, classify each cell as empty/
 Requires Python 3.10.
 
 ```bash
-# 依存インストール（uv利用例）
+# Install dependencies (example with uv)
 uv pip install -r pyproject.toml
 ```
 
@@ -14,11 +14,11 @@ If offline, preinstall `ultralytics` and `torch`.
 ## Usage
 ```bash
 python main.py \
-  --image input.jpg \        # 任意の単一画像。pipeline では各フレームに同等処理を適用
-  --output overlay.jpg \     # オーバーレイ不要なら --skip-overlay
+  --image input.jpg \        # Single image input; pipelines can apply the same per-frame.
+  --output overlay.jpg \     # Use --skip-overlay if you only want detections.
   --state-json board_state.json \
   --print-state \
-  --device mps        # 例: Apple Silicon の場合
+  --device mps        # example: Apple Silicon
   --grayscale         # Grayscale for both synth/inference
   --clahe             # Grayscale+CLAHE before inference
   --contrast-alpha 1.2 --contrast-beta -5  # Extra contrast tweak before inference
@@ -52,3 +52,33 @@ python label_tool.py --images real/images --labels real/labels
 - Each cell max 1 token. Board has 0–5 white circles, black crosses are same count or minus one. Crosses have handle heads with jittered color/edge; add a few dummy O/X outside board to learn ignoring; include low-contrast, blur, noise cases.
 - Train YOLOv8n (default 20 epochs) to directly detect 9 occupancy cells, then overlay cell index and class label.
 - Default synthetic count: train 1000 / val 200. Background/lines vary in contrast, brightness, noise, blur for diversity.
+
+## Release to Hugging Face
+- Code license: AGPL-3.0 (aligned to Ultralytics dependency)
+- Model weights: CC-BY-4.0 (e.g., `models/train/weights/best.pt`)
+- Dataset: CC-BY-4.0 (real images + synthetic generation recipe)
+
+Steps (manual):
+1) Login: `uvx hf login`
+2) Create repos: `uvx hf repo create <org>/tic-tac-toe-cell-detector --repo-type model` (use `--repo-type dataset` for the dataset)
+3) Clone, place README/MODEL_CARD/DATASET_CARD, add `models/train/weights/best.pt` and `real/`
+4) `git add . && git commit -m "Add model and dataset (CC-BY-4.0)" && git push`
+
+Document the license and usage in the model card / data card before push.
+
+### Publish only model & dataset (minimal package, without full repo)
+Pre-req: `uvx hf login`, `git lfs install` (and ensure LFS hooks active), optional speed-up: `uvx pip install -U "huggingface_hub[hf_transfer]"` then set `HF_HUB_ENABLE_HF_TRANSFER=1` when pushing. HF repos must already exist with correct `.gitattributes` (e.g., `*.pt` in LFS for model, images for dataset); the Make tasks clone and update them.
+```
+# run inside tic_tac_toe_overlay (or add -C tic_tac_toe_overlay)
+make HF_MODEL_REPO=your-org/tic-tac-toe-model hf-model-push
+make HF_DATASET_REPO=your-org/tic-tac-toe-dataset hf-dataset-push
+```
+What it does:
+- Model: stages `best.pt`, README from `MODEL_CARD.md`, LICENSE=CC-BY-4.0, then `git push` to the HF model repo.
+- Dataset: stages `real/images` + `real/labels`, README from `DATASET_CARD.md`, LICENSE=CC-BY-4.0, then `git push` to the HF dataset repo.
+Codebase itself stays private; only the minimal artifacts are published.
+
+Note: these targets assume repos already exist with correct LFS configuration and `.gitattributes`. They simply clone, replace artifacts, and push (commit message: update). To speed up pushes, install `huggingface_hub[hf_transfer]` and set `HF_HUB_ENABLE_HF_TRANSFER=1`.
+
+### Dataset parquet
+- `make hf-dataset-stage` also generates `dataset.parquet` from `real/labels` (YOLO txt) with columns: `image`, `label_file`, `class_id`, `cx`, `cy`, `w`, `h`. One row per bbox (empty labels produce a single row with null class/coords). Requires `pyarrow`.

@@ -8,4 +8,5 @@ dependencies = [
     "opencv-python>=4.12.0.88",
     "ultralytics>=8.3.50",
     "numpy>=1.26",
+    "pyarrow>=14.0.0",
 ]
