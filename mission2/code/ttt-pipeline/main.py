@@ -12,6 +12,33 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
+import subprocess
+
+W, H, FPS = 640, 480, 30
+
+ffmpeg = subprocess.Popen(
+    [
+        "ffmpeg",
+        "-y",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "bgr24",
+        "-s",
+        f"{W}x{H}",
+        "-r",
+        str(FPS),
+        "-i",
+        "-",
+        "-f",
+        "v4l2",
+        "-pix_fmt",
+        "yuv420p",
+        "/dev/video12",
+    ],
+    stdin=subprocess.PIPE,
+)
+
 # Add sibling projects to path for reuse
 CODE_ROOT = Path(__file__).resolve().parents[1]
 OVERLAY_ROOT = CODE_ROOT / "tic_tac_toe_overlay"
@@ -198,13 +225,10 @@ def main() -> int:
         sys.stderr.write(f"Failed to open video source: {args.source}\n")
         return 1
 
-    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     if width <= 0 or height <= 0:
         width, height = 640, 480
-    camera_target = parse_camera_target(args.output_camera)
-    camera_writer = open_camera_sink(camera_target, fps, width, height)
 
     model = YOLO(str(args.weights))
     last_state_map = None
@@ -270,8 +294,8 @@ def main() -> int:
             if target_bbox:
                 output_frame = overlay_cell(frame, target_bbox)
 
-            if camera_writer:
-                camera_writer.write(output_frame)
+            if ffmpeg:
+                ffmpeg.stdin.write(output_frame.tobytes())
             if args.display:
                 cv2.imshow("tic-tac-toe-pipeline", output_frame)
                 if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -282,8 +306,8 @@ def main() -> int:
                 break
     finally:
         cap.release()
-        if camera_writer:
-            camera_writer.release()
+        if ffmpeg:
+            ffmpeg.stdin.close()
         if args.display:
             cv2.destroyAllWindows()
 
