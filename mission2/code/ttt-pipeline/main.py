@@ -44,9 +44,10 @@ def parse_args() -> argparse.Namespace:
         help="Video source (camera index like 0/1 or file path).",
     )
     parser.add_argument(
-        "--output",
-        default="pipeline_output.mp4",
-        help="Where to write the masked video (mp4).",
+        "--output-camera",
+        default="1",
+        help="Camera device index or path to stream masked frames (e.g. /dev/video2). "
+        "Set to an empty string to disable camera streaming.",
     )
     parser.add_argument(
         "--interval",
@@ -142,6 +143,36 @@ def parse_source(source: str) -> str | int:
         return source
 
 
+def parse_camera_target(camera: str | None) -> str | int | None:
+    if camera is None or camera == "":
+        return None
+    try:
+        return int(camera)
+    except ValueError:
+        return camera
+
+
+def open_camera_sink(camera_target: str | int | None, fps: float, width: int, height: int) -> cv2.VideoWriter | None:
+    if camera_target is None:
+        return None
+
+    fourcc = cv2.VideoWriter_fourcc(*"MJPG")
+    attempts = [
+        (camera_target, cv2.CAP_V4L2),
+        (camera_target, cv2.CAP_ANY),
+    ]
+
+    for target, api_pref in attempts:
+        writer = cv2.VideoWriter(target, api_pref, fourcc, fps, (width, height))
+        if writer.isOpened():
+            print(f"[info] Streaming masked frames to camera {camera_target} (api={api_pref}).")
+            return writer
+        writer.release()
+
+    sys.stderr.write(f"[warn] Failed to open output camera {camera_target}; streaming disabled.\n")
+    return None
+
+
 def overlay_cell(frame: np.ndarray, bbox: Tuple[int, int, int, int]) -> np.ndarray:
     x0, y0, x1, y1 = bbox
     overlay = frame.copy()
@@ -172,12 +203,8 @@ def main() -> int:
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     if width <= 0 or height <= 0:
         width, height = 640, 480
-
-    writer = None
-    output_path = Path(args.output) if args.output else None
-    if output_path:
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        writer = cv2.VideoWriter(str(output_path), fourcc, fps, (width, height))
+    camera_target = parse_camera_target(args.output_camera)
+    camera_writer = open_camera_sink(camera_target, fps, width, height)
 
     model = YOLO(str(args.weights))
     last_state_map = None
@@ -231,8 +258,8 @@ def main() -> int:
             if target_bbox:
                 output_frame = overlay_cell(frame, target_bbox)
 
-            if writer:
-                writer.write(output_frame)
+            if camera_writer:
+                camera_writer.write(output_frame)
             if args.display:
                 cv2.imshow("tic-tac-toe-pipeline", output_frame)
                 if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -243,13 +270,11 @@ def main() -> int:
                 break
     finally:
         cap.release()
-        if writer:
-            writer.release()
+        if camera_writer:
+            camera_writer.release()
         if args.display:
             cv2.destroyAllWindows()
 
-    if output_path:
-        print(f"[info] Saved masked stream to {output_path}")
     return 0
 
 
