@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import argparse
+import json
 import random
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Tuple
+from typing import Dict, Iterable, List, Tuple
 
 import cv2
 import numpy as np
@@ -28,6 +29,68 @@ class GridBox:
     def center(self) -> Tuple[float, float]:
         x0, y0, x1, y1 = self.xyxy
         return (x0 + x1) / 2, (y0 + y1) / 2
+
+
+CLS_TO_LABEL = {0: "empty", 1: "O", 2: "X"}
+
+
+@dataclass
+class CellState:
+    id: int
+    label: str
+    bbox: Tuple[int, int, int, int]
+    confidence: float
+
+    @property
+    def center(self) -> Tuple[float, float]:
+        x0, y0, x1, y1 = self.bbox
+        return (x0 + x1) / 2.0, (y0 + y1) / 2.0
+
+
+@dataclass
+class BoardState:
+    cells: List[CellState]
+
+    @property
+    def state_map(self) -> Dict[str, str]:
+        return {str(cell.id): cell.label for cell in self.cells}
+
+    def compact_string(self) -> str:
+        entries = [f"{idx}={self.state_map.get(str(idx), 'unknown')}" for idx in range(1, 10)]
+        return ",".join(entries)
+
+    def pretty_text(self) -> str:
+        rows = []
+        for r in range(3):
+            labels = [self.state_map.get(str(r * 3 + c + 1), "?") for c in range(3)]
+            rows.append(" | ".join(labels))
+        lines = ["Board state:"] + rows + [f"Raw: {self.compact_string()}"]
+        return "\n".join(lines)
+
+    def bbox_for_cell(self, cell_id: int) -> Tuple[int, int, int, int] | None:
+        for cell in self.cells:
+            if cell.id == cell_id:
+                return cell.bbox
+        return None
+
+    def to_jsonable(self) -> Dict[str, object]:
+        cells_payload = []
+        for cell in self.cells:
+            x0, y0, x1, y1 = cell.bbox
+            cells_payload.append(
+                {
+                    "id": cell.id,
+                    "label": cell.label,
+                    "bbox": [x0, y0, x1, y1],
+                    "center": [cell.center[0], cell.center[1]],
+                    "confidence": cell.confidence,
+                }
+            )
+        return {
+            "cells": cells_payload,
+            "state_map": self.state_map,
+            "state_string": self.compact_string(),
+        }
 
 
 def _transform_box(
@@ -492,8 +555,8 @@ def preprocess_dataset_images(
 
 
 def predict_cells(
-    image_path: Path,
-    model_path: Path,
+    image: Path | np.ndarray,
+    model: Path | YOLO,
     conf: float = 0.5,
     device: str = "cpu",
     max_det: int = 300,
@@ -503,11 +566,13 @@ def predict_cells(
     contrast_beta: float | None = None,
     save_preprocessed: Path | None = None,
 ) -> List[GridBox]:
-    model = YOLO(str(model_path))
-    source = str(image_path)
-    img = cv2.imread(source)
-    if img is None:
-        raise FileNotFoundError(f"Failed to read image: {image_path}")
+    model_obj = model if isinstance(model, YOLO) else YOLO(str(model))
+    if isinstance(image, (str, Path)):
+        img = cv2.imread(str(image))
+        if img is None:
+            raise FileNotFoundError(f"Failed to read image: {image}")
+    else:
+        img = image.copy()
     img = apply_preprocess(
         img,
         grayscale=grayscale,
@@ -518,16 +583,15 @@ def predict_cells(
     if save_preprocessed:
         save_preprocessed.parent.mkdir(parents=True, exist_ok=True)
         cv2.imwrite(str(save_preprocessed), img)
-    source = img
     predict_kwargs = {
-        "source": source,
+        "source": img,
         "conf": conf,
         "imgsz": 640,
         "device": device,
         "max_det": max_det,
         "verbose": False,
     }
-    results = model.predict(**predict_kwargs)
+    results = model_obj.predict(**predict_kwargs)
     boxes: List[GridBox] = []
     for box in results[0].boxes:
         xyxy = box.xyxy[0].cpu().numpy()
@@ -548,6 +612,76 @@ def order_cells(boxes: List[GridBox]) -> List[np.ndarray]:
     for row in rows:
         ordered.extend(sorted(row, key=lambda b: b.center[0]))
     return ordered
+
+
+def cells_to_board_state(cells: List[GridBox]) -> BoardState:
+    states: List[CellState] = []
+    for idx, cell in enumerate(cells):
+        states.append(
+            CellState(
+                id=idx + 1,
+                label=CLS_TO_LABEL.get(cell.cls, "unknown"),
+                bbox=cell.xyxy_int,
+                confidence=cell.conf,
+            )
+        )
+    return BoardState(states)
+
+
+def board_state_to_text(board_state: BoardState) -> str:
+    return board_state.pretty_text()
+
+
+def save_board_state(
+    board_state: BoardState,
+    json_path: Path | None,
+    text_path: Path | None,
+    print_state: bool = False,
+) -> None:
+    if json_path:
+        json_path = Path(json_path)
+        json_path.parent.mkdir(parents=True, exist_ok=True)
+        json_path.write_text(
+            json.dumps(board_state.to_jsonable(), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    text_content = board_state_to_text(board_state)
+    if text_path:
+        text_path = Path(text_path)
+        text_path.parent.mkdir(parents=True, exist_ok=True)
+        text_path.write_text(text_content, encoding="utf-8")
+    if print_state:
+        print(text_content)
+
+
+def detect_board_state(
+    image: Path | np.ndarray,
+    model: Path | YOLO,
+    conf: float = 0.5,
+    device: str = "cpu",
+    max_det: int = 300,
+    grayscale: bool = False,
+    clahe: bool = False,
+    contrast_alpha: float | None = None,
+    contrast_beta: float | None = None,
+    save_preprocessed: Path | None = None,
+) -> tuple[BoardState | None, List[GridBox]]:
+    boxes = predict_cells(
+        image,
+        model,
+        conf=conf,
+        device=device,
+        max_det=max_det,
+        grayscale=grayscale,
+        clahe=clahe,
+        contrast_alpha=contrast_alpha,
+        contrast_beta=contrast_beta,
+        save_preprocessed=save_preprocessed,
+    )
+    ordered = order_cells(boxes)
+    if not ordered:
+        return None, boxes
+    return cells_to_board_state(ordered), ordered
 
 
 def apply_preprocess(
@@ -655,9 +789,10 @@ def run(args: argparse.Namespace) -> None:
         )
 
     print(f"[info] Running detection on {image_path}")
-    boxes = predict_cells(
+    model = YOLO(str(weights_path))
+    board_state, ordered_cells = detect_board_state(
         image_path,
-        weights_path,
+        model,
         conf=args.conf,
         device=args.device,
         max_det=args.max_det,
@@ -669,13 +804,21 @@ def run(args: argparse.Namespace) -> None:
         if args.save_preprocessed
         else None,
     )
-    cells = order_cells(boxes)
-    if not cells:
+    if not board_state or not ordered_cells:
         print("[error] Failed to detect 9 cells by YOLO.")
         return
-    print(f"[info] Detected {len(cells)} cells, drawing overlay")
-    draw_overlay(image_path, cells, output_path)
-    print(f"[info] Overlay saved to {output_path}")
+    print(f"[info] Detected {len(ordered_cells)} cells")
+
+    save_board_state(
+        board_state,
+        json_path=Path(args.state_json) if args.state_json else None,
+        text_path=Path(args.state_text) if args.state_text else None,
+        print_state=args.print_state,
+    )
+
+    if not args.skip_overlay:
+        draw_overlay(image_path, ordered_cells, output_path)
+        print(f"[info] Overlay saved to {output_path}")
 
 
 def build_argparser() -> argparse.ArgumentParser:
@@ -684,6 +827,26 @@ def build_argparser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--image", default="top-camera.jpg", help="Input image path")
     parser.add_argument("--output", default="overlay.jpg", help="Output image path")
+    parser.add_argument(
+        "--skip-overlay",
+        action="store_true",
+        help="Skip writing overlay image (useful when only the state text/JSON is needed)",
+    )
+    parser.add_argument(
+        "--state-json",
+        default=None,
+        help="Path to save board state (cell labels + bbox) as JSON",
+    )
+    parser.add_argument(
+        "--state-text",
+        default=None,
+        help="Path to save board state as readable text",
+    )
+    parser.add_argument(
+        "--print-state",
+        action="store_true",
+        help="Print the board state summary to stdout",
+    )
     parser.add_argument(
         "--weights", default="models/cell_grid.pt", help="YOLO weights path"
     )

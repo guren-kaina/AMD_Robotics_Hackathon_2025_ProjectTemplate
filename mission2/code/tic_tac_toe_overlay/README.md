@@ -16,6 +16,8 @@ If offline, preinstall `ultralytics` and `torch`.
 python main.py \
   --image top-camera.jpg \
   --output overlay.jpg \
+  --state-json board_state.json \
+  --print-state \
   --device mps        # 例: Apple Silicon の場合
   --grayscale         # Grayscale for both synth/inference
   --clahe             # Grayscale+CLAHE before inference
@@ -31,8 +33,9 @@ python main.py \
 
 - First run builds synthetic data in `data/synth_grid`, trains YOLO weights to `models/cell_grid.pt`, then runs inference.
 - `--force-regen` regenerates data, `--force-train` retrains.
-- Output saved to `overlay.jpg`.
+- Output saved to `overlay.jpg` (unless `--skip-overlay`).
 - `--real-data` copies `<real-data>/images` and `labels` into train for training (beware overwrites).
+- `--state-json/--state-text/--print-state` export the detected board (cell labels + pixel boxes) as text/JSON for the planner/pipeline.
 
 ### Simple GUI for real image labeling
 `label_tool.py` (OpenCV) is included. Drag to create boxes, number keys to switch class, n/p to navigate, s to save, d to delete last, u/Ctrl+Z to undo, q/Esc to quit.
