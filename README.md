@@ -5,10 +5,48 @@
 **Team:** Kaina
 **Members** [Ryo Igarashi](https://github.com/igaryo0506), [Kenta Mori](https://github.com/zoncoen), [Shota Iwami](https://github.com/BIwashi), [Gen Shu](https://github.com/genkey6)
 
-**Summary** <of your task>
-...
+**Summary**
+Tic-tac-toe solver arm that reads the board from a top camera, plans the next move for player **X**, and overlays the target cell for the SO-Arm 101 to execute. We fine-tuned a lightweight YOLOv8n with mostly synthetic grids (plus optional real labels) in `mission2/code/tic_tac_toe_overlay` to classify each cell as empty/O/X. The text-only planner in `mission2/code/tic-tac-toe-planner` uses a local LLM (default `Qwen/Qwen3-4B-Instruct-2507`) to choose the move, avoiding heavy VLA reasoning. `mission2/code/ttt-pipeline` stitches the pieces: capture frames, detect the 3x3 board, call the planner when the board changes, paint the chosen cell, and stream the masked video to a virtual camera. Hardware follows the shared slide deck: top/side/gripper cameras, top light, AMD laptop, SO-Arm 101, and a 3D-printed board fixture.
 
-**How To**: <reproduce your work in steps>
+**How To**: reproduce end-to-end
+1. Set up dependencies (Python 3.10+). Using `uv`:
+   ```bash
+   cd mission2/code/tic_tac_toe_overlay   && uv sync
+   cd ../tic-tac-toe-planner              && uv sync
+   cd ../ttt-pipeline                     && uv sync
+   ```
+   Ensure `ffmpeg` and a v4l2loopback/virtual camera device (e.g., `/dev/video12`) exist for streaming. Download the planner model locally (default `Qwen/Qwen3-4B-Instruct-2507`) so transformers can load it offline.
+2. Train or reuse the YOLO cell detector. The overlay script auto-generates a synthetic dataset and trains if weights are missing:
+   ```bash
+   cd mission2/code/tic_tac_toe_overlay
+   uv run python3 main.py \
+     --image top-camera.jpg \
+     --output overlay.jpg \
+     --state-json board_state.json \
+     --print-state \
+     --device cpu          # use cuda:0 or mps if available
+   ```
+   Add `--real-data real` to mix labeled real images, `--force-train`/`--force-regen` to retrain/regenerate synth data. Weights are saved to `models/cell_grid.pt`.
+3. Plan a move from the detected board (text-only LLM):
+   ```bash
+   cd mission2/code/tic-tac-toe-planner
+   uv run tic_tac_toe_planner.py \
+     --state-json ../tic_tac_toe_overlay/board_state.json \
+     --model Qwen/Qwen3-4B-Instruct-2507
+   ```
+   Optional: `--obs-host localhost` to toggle OBS sources `1`–`9` in scene `シーン`.
+4. Run the live pipeline to overlay the next action on the camera feed and stream to the virtual device:
+   ```bash
+   cd mission2/code/ttt-pipeline
+   uv run python3 main.py \
+     --source 0 \
+     --weights ../tic_tac_toe_overlay/models/cell_grid.pt \
+     --planner-model Qwen/Qwen3-4B-Instruct-2507 \
+     --interval 5 \
+     --display \
+     --save-state latest_board.json
+   ```
+   The script polls the board every `--interval` seconds, calls the planner when the state changes, masks the chosen cell in red, and pipes frames to `/dev/video12` via `ffmpeg` (edit the hard-coded device in `main.py` if needed). Use `--display` to preview locally; press `q` to quit.
 
 **Delivery URL**
 
