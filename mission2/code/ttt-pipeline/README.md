@@ -6,15 +6,15 @@ Capture a video stream, detect the tic-tac-toe board with `tic_tac_toe_overlay`,
 - Python 3.10+
 - Install dependencies (uv example):
   ```bash
-  cd mission2/code/pipeline
+  cd mission2/code/ttt-pipeline
   uv pip install -r pyproject.toml
   ```
 - Prepare overlay weights (`cell_grid.pt`) with `mission2/code/tic_tac_toe_overlay/main.py` (training is triggered automatically there when weights are missing).
 
 ## Usage
-Run the pipeline against a camera (e.g., index 0) and save `pipeline_output.mp4`:
+Run the ttt-pipeline against a camera (e.g., index 0) and save `pipeline_output.mp4`:
 ```bash
-cd mission2/code/pipeline
+cd mission2/code/ttt-pipeline
 python main.py \
   --source 0 \
   --weights ../tic_tac_toe_overlay/models/cell_grid.pt \
