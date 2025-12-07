@@ -1,5 +1,5 @@
 ## Overview
-Text-based planner that receives tic-tac-toe board state (JSON or inline text), then returns the best next move for player `X`. It calls a Hugging Face-hosted/open LLM via `huggingface_hub` and can optionally update OBS.
+Text-based planner that receives tic-tac-toe board state (JSON or inline text) exported by the overlay, then returns the best next move for player `X`. It calls a Hugging Face-hosted/open LLM via `huggingface_hub` (chat fallback included) and can optionally update OBS. No image/VLM input is used—board state is text-only.
 
 ## Setup (with uv)
 ```bash

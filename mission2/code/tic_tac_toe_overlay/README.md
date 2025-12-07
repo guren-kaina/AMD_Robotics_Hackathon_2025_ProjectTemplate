@@ -1,5 +1,5 @@
 ## Purpose
-Detect the 3x3 tic-tac-toe cells in `top-camera.jpg`, classify each cell as empty/O/X, and overlay numbers and labels. The script auto-generates synthetic data, trains a lightweight YOLO model, and runs inference to produce `overlay.jpg`.
+Detect the 3x3 tic-tac-toe cells in an input frame, classify each cell as empty/O/X, and optionally overlay numbers/labels. The script auto-generates synthetic data, trains a lightweight YOLO model, runs inference on a single image, and exports both an overlay image and structured board state (JSON/text) for the pipeline/planner.
 
 ## Setup
 Requires Python 3.10.
@@ -14,8 +14,8 @@ If offline, preinstall `ultralytics` and `torch`.
 ## Usage
 ```bash
 python main.py \
-  --image top-camera.jpg \
-  --output overlay.jpg \
+  --image input.jpg \        # 任意の単一画像。pipeline では各フレームに同等処理を適用
+  --output overlay.jpg \     # オーバーレイ不要なら --skip-overlay
   --state-json board_state.json \
   --print-state \
   --device mps        # 例: Apple Silicon の場合
@@ -35,7 +35,7 @@ python main.py \
 - `--force-regen` regenerates data, `--force-train` retrains.
 - Output saved to `overlay.jpg` (unless `--skip-overlay`).
 - `--real-data` copies `<real-data>/images` and `labels` into train for training (beware overwrites).
-- `--state-json/--state-text/--print-state` export the detected board (cell labels + pixel boxes) as text/JSON for the planner/pipeline.
+- `--state-json/--state-text/--print-state` export the detected board (cell labels + pixel boxes) as text/JSON for the planner/pipeline. No VLM/Gemini is used—only the YOLO detector runs here.
 
 ### Simple GUI for real image labeling
 `label_tool.py` (OpenCV) is included. Drag to create boxes, number keys to switch class, n/p to navigate, s to save, d to delete last, u/Ctrl+Z to undo, q/Esc to quit.
