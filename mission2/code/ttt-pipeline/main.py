@@ -6,6 +6,7 @@ import argparse
 import os
 import sys
 import time
+from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import Tuple
 
@@ -230,6 +231,22 @@ def log_board_change(board_state: BoardState, planner_result: PlannerResult | No
         print(f"[info] Board state updated: {state_str}")
 
 
+def submit_planner(
+    executor: ThreadPoolExecutor, state_map: dict[str, str], args: argparse.Namespace
+) -> Future[PlannerResult]:
+    hf_token = args.planner_hf_token or os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACEHUB_API_TOKEN")
+    return executor.submit(
+        generate_plan,
+        state_map=state_map,
+        model=args.planner_model,
+        temperature=args.planner_temperature,
+        max_output_tokens=args.planner_max_tokens,
+        use_remote=args.planner_engine == "remote",
+        hf_token=hf_token,
+        hf_endpoint=args.planner_hf_endpoint,
+    )
+
+
 def main() -> int:
     args = parse_args()
     video_source = parse_source(args.source)
@@ -248,6 +265,11 @@ def main() -> int:
     target_bbox: Tuple[int, int, int, int] | None = None
     last_inference_time = 0.0
     frame_count = 0
+    planner_executor = ThreadPoolExecutor(max_workers=1)
+    planner_future: Future[PlannerResult] | None = None
+    planner_board_state: BoardState | None = None
+    pending_state_map: dict[str, str] | None = None
+    pending_board_state: BoardState | None = None
 
     try:
         while True:
@@ -280,23 +302,12 @@ def main() -> int:
                 if board_state and ordered_cells:
                     state_map = board_state.state_map
                     if state_map != last_state_map:
-                        try:
-                            planner_result = generate_plan(
-                                state_map=state_map,
-                                model=args.planner_model,
-                                temperature=args.planner_temperature,
-                                max_output_tokens=args.planner_max_tokens,
-                                use_remote=args.planner_engine == "remote",
-                                hf_token=args.planner_hf_token
-                                or os.getenv("HF_TOKEN")
-                                or os.getenv("HUGGINGFACEHUB_API_TOKEN"),
-                                hf_endpoint=args.planner_hf_endpoint,
-                            )
-                            target_bbox = board_state.bbox_for_cell(planner_result.next_action)
-                            log_board_change(board_state, planner_result)
-                        except Exception as exc:
-                            target_bbox = None
-                            sys.stderr.write(f"[warn] Planning failed: {exc}\n")
+                        if planner_future and not planner_future.done():
+                            pending_state_map = state_map
+                            pending_board_state = board_state
+                        else:
+                            planner_future = submit_planner(planner_executor, state_map, args)
+                            planner_board_state = board_state
                         last_state_map = state_map
                         if args.save_state:
                             save_board_state(board_state, json_path=Path(args.save_state), text_path=None)
@@ -306,6 +317,23 @@ def main() -> int:
                         f"state={board_state is not None} ordered_cells={bool(ordered_cells)} "
                         f"frame_shape={frame.shape if frame is not None else 'None'}\n"
                     )
+
+            if planner_future and planner_future.done():
+                try:
+                    planner_result = planner_future.result()
+                    if planner_board_state:
+                        target_bbox = planner_board_state.bbox_for_cell(planner_result.next_action)
+                        log_board_change(planner_board_state, planner_result)
+                except Exception as exc:
+                    target_bbox = None
+                    sys.stderr.write(f"[warn] Planning failed: {exc}\n")
+                planner_future = None
+                planner_board_state = None
+                if pending_state_map and pending_board_state:
+                    planner_future = submit_planner(planner_executor, pending_state_map, args)
+                    planner_board_state = pending_board_state
+                    pending_state_map = None
+                    pending_board_state = None
 
             output_frame = frame
             if target_bbox:
@@ -325,6 +353,7 @@ def main() -> int:
         cap.release()
         if ffmpeg:
             ffmpeg.stdin.close()
+        planner_executor.shutdown(wait=False, cancel_futures=True)
         if args.display:
             cv2.destroyAllWindows()
 

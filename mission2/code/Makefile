@@ -82,7 +82,7 @@ inference-pi:
 
 .PHONY: run-ttt-pipeline
 run-ttt-pipeline:
-	cd mission2/code/ttt-pipeline && uv run python3 main.py \
+	cd ttt-pipeline && uv run python3 main.py \
 		--source 10 \
 		--weights ../tic_tac_toe_overlay/models/cell_grid.pt \
 	    --planner-model Qwen/Qwen2.5-7B-Instruct \
