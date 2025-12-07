@@ -101,6 +101,7 @@ Tic-tac-toe solver arm that reads the board from a top camera, plans the next mo
     - https://huggingface.co/datasets/guren-kaina/tic-tac-toe-2
     - https://huggingface.co/datasets/guren-kaina/tic-tac-toe-3
     - https://huggingface.co/datasets/guren-kaina/tic-tac-toe-4
+    - https://huggingface.co/guren-kaina/tic-tac-toe-cell-detector
 - *URL of your model in Hugging Face*
     - https://huggingface.co/guren-kaina/tic-tac-toe-1
     - https://huggingface.co/guren-kaina/act-tic-tac-toe-2
@@ -109,6 +110,7 @@ Tic-tac-toe solver arm that reads the board from a top camera, plans the next mo
     - https://huggingface.co/guren-kaina/pi05_tic-tac-toe-3
     - https://huggingface.co/guren-kaina/act-tic-tac-toe-4
     - https://huggingface.co/guren-kaina/pi05_tic-tac-toe-4
+    - https://huggingface.co/datasets/guren-kaina/tic-tac-toe-board-dataset
 - *Link to a blog post describing your work*
     - soon
 
