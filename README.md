@@ -6,7 +6,21 @@
 **Members** [Ryo Igarashi](https://github.com/igaryo0506), [Kenta Mori](https://github.com/zoncoen), [Shota Iwami](https://github.com/BIwashi), [Gen Shu](https://github.com/genkey6)
 
 **Summary**
+<<<<<<< Updated upstream
 Tic-tac-toe solver arm that reads the board from a top camera, plans the next move for player **X**, and overlays the target cell for the SO-Arm 101 to execute. We fine-tuned a lightweight YOLOv8n with mostly synthetic grids (plus optional real labels) in `mission2/code/tic_tac_toe_overlay` to classify each cell as empty/O/X. The text-only planner in `mission2/code/tic-tac-toe-planner` uses a local LLM (default `Qwen/Qwen3-4B-Instruct-2507`) to choose the move, avoiding heavy VLA reasoning. `mission2/code/ttt-pipeline` stitches the pieces: capture frames, detect the 3x3 board, call the planner when the board changes, paint the chosen cell, and stream the masked video to a virtual camera. Hardware follows the shared slide deck: top/side/gripper cameras, top light, AMD laptop, SO-Arm 101, and a 3D-printed board fixture.
+=======
+A robotic arm that plays Tic-Tac-Toe. It uses a camera to see the board, a YOLOv8 model to identify pieces, a local LLM to decide the next move, and a custom pipeline to control the arm and overlay the action. This project also establishes an integrated pipeline to execute an entire match sequence.
+
+<img src="./media/Slide/Hardware.png">
+<img src="./media/Slide/DataCollection.png">
+<img src="./media/Slide/Inference.png">
+
+**Code Components**
+- `mission2/code/tic_tac_toe_overlay`: Fine-tuned YOLOv8n to classify each cell as empty/O/X.
+- `mission2/code/tic-tac-toe-planner`: Text-only planner using a local LLM to choose the next move.
+- `mission2/code/ttt-pipeline`: A pipeline that connects the components, captures frames, detects the board, calls the planner, and streams the video.
+
+>>>>>>> Stashed changes
 
 **How To**: reproduce end-to-end
 1. Set up dependencies (Python 3.10+). Using `uv`:
@@ -88,9 +102,15 @@ Tic-tac-toe solver arm that reads the board from a top camera, plans the next mo
         - Leveraging the powerful reasoning capabilities of a text-only Large Language Model (LLM), the system acts as a board game solver. It processes the YOLO-detected board state as text to determine and return the optimal next move.
 
 ### 4. Ease of use
-- *How generalizable is your implementation across tasks or environments?*
-- *Flexibility and adaptability of the solution*
-- *Types of commands or interfaces needed to control the robot*
+The strength of this project lies in its highly modular and generalizable architecture. By separating motion planning from reasoning, the system offers significant flexibility and adaptability.
+
+- **General-Purpose Design**: Unlike monolithic models (e.g., VLA), this architecture delegates tasks to specialized components. This separation allows the reasoning model to be used for a wide variety of tasks beyond board games, simply by training new motion policies. The core logic remains independent of the specific physical action.
+    - **Innovative Learning Approach**: The project utilizes a groundbreaking learning methodology for Transformers and Vision-Language-Action (VLA) models, which significantly enhances generalizability and facilitates broader application across various motion tasks. This approach emphasizes separating the reasoning component from motion execution, allowing for greater flexibility and easier adaptation to new scenarios.
+- **Modular Components**:
+    - **Perception (YOLOv8)**: Handles the visual understanding of the environment. This module can be retrained or replaced to recognize different objects or scenes.
+    - **Reasoning (LLM)**: A text-only Large Language Model that determines the strategic next step. It is completely decoupled from the robot's physical capabilities.
+    - **Motion (ACT/Pi0.5)**: The policy models that execute the physical movements. New motions can be taught and integrated without altering the reasoning or perception modules.
+- **Simple Control Interface**: The entire pipeline is orchestrated through a series of straightforward command-line scripts. Users can initiate detection, planning, and the full pipeline with clear and configurable commands, allowing for easy experimentation and integration.
 
 ## Additional Links
 *For example, you can provide links to:*
