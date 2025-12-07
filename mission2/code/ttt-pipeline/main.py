@@ -218,7 +218,8 @@ def overlay_cell(frame: np.ndarray, bbox: Tuple[int, int, int, int]) -> np.ndarr
     red_bgr = (0, 0, 255)  # #ff0000 in BGR order for OpenCV
     overlay = frame.copy()
     cv2.rectangle(overlay, (x0, y0), (x1, y1), red_bgr, thickness=-1)
-    return cv2.addWeighted(overlay, 0.35, frame, 0.65, 0)
+    # Use a higher overlay weight so the mask appears as vivid red instead of faint
+    return cv2.addWeighted(overlay, 0.85, frame, 0.15, 0)
 
 
 def log_board_change(board_state: BoardState, planner_result: PlannerResult | None) -> None:
