@@ -82,6 +82,10 @@ Tic-tac-toe solver arm that reads the board from a top camera, plans the next mo
 - *Inference*
     - **Inference with Pi0.5 Model using Real Time Chunking (RTC)**
         - The Pi0.5 model leverages Real Time Chunking (RTC), an evolution of Action Chunking Transformers (ACT), to infer and execute robot movements in meaningful "chunks." Instead of frame-by-frame action decisions, RTC predicts entire action sequences (e.g., "grasp → lift → move → place") at once. This significantly reduces end-to-end latency, enables smoother, more natural manipulation, and optimizes computational load by avoiding per-frame inference. This approach, combined with AMD's high-performance hardware, ensures fast and seamless Tic-tac-toe gameplay.
+    - **Board State Detection using Fine-tuned YOLO**
+        - A fine-tuned YOLOv8n model detects the contents and bounding box of each cell (empty, X, or O), forming the initial step of the inference pipeline. This output is then bifurcated: the natural language description of the board state is fed to the LLM for strategic planning, while the bounding box coordinates are used by the Pi0.5 model to guide the robot's physical movements.
+    - **Reasoning with LLM**
+        - Leveraging the powerful reasoning capabilities of a text-only Large Language Model (LLM), the system acts as a board game solver. It processes the YOLO-detected board state as text to determine and return the optimal next move.
 
 ### 4. Ease of use
 - *How generalizable is your implementation across tasks or environments?*
