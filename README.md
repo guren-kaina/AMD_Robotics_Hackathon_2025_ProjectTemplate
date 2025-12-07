@@ -65,7 +65,8 @@ A robotic arm that plays Tic-Tac-Toe. It uses a camera to see the board, a YOLOv
 ## Submission Details
 
 ### 1. Mission Description
-- *Real world application of your mission*
+- Introducing a new form of interactive entertainment — playing board games against a robot opponent.
+- While the current mission centers on Tic-Tac-Toe, the modular perception–reasoning–motion architecture allows seamless adaptation to other games or interactive scenarios, demonstrating the versatility of the system.
 
 ### 2. Creativity
 - Robust perception: YOLOv8 detects the 3x3 grid and cell states (X/O/empty) from mostly synthetic data with a few real labels, so camera angle or board design changes can be adapted quickly.
