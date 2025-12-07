@@ -63,7 +63,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--conf",
         type=float,
-        default=0.5,
+        default=0.25,
         help="Confidence threshold for detection.",
     )
     parser.add_argument(
@@ -170,8 +170,9 @@ def open_camera_sink(camera_target: str | int | None, fps: float, width: int, he
 
 def overlay_cell(frame: np.ndarray, bbox: Tuple[int, int, int, int]) -> np.ndarray:
     x0, y0, x1, y1 = bbox
+    red_bgr = (0, 0, 255)  # #ff0000 in BGR order for OpenCV
     overlay = frame.copy()
-    cv2.rectangle(overlay, (x0, y0), (x1, y1), (0, 0, 255), thickness=-1)
+    cv2.rectangle(overlay, (x0, y0), (x1, y1), red_bgr, thickness=-1)
     return cv2.addWeighted(overlay, 0.35, frame, 0.65, 0)
 
 
