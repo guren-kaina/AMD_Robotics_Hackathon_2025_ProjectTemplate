@@ -90,7 +90,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--conf",
         type=float,
-        default=0.5,
+        default=0.25,
         help="Confidence threshold for detection.",
     )
     parser.add_argument(
@@ -124,8 +124,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--planner-model",
-        default="Qwen/Qwen2.5-7B-Instruct",
-        help="Model name for planner Hugging Face inference (default: Qwen/Qwen2.5-7B-Instruct).",
+        default="Qwen/Qwen3-4B-Instruct-2507",
+        help="Model name/path for planner local inference (default: Qwen/Qwen3-4B-Instruct-2507).",
     )
     parser.add_argument(
         "--planner-temperature",
@@ -138,11 +138,6 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=256,
         help="Max tokens for planner LLM.",
-    )
-    parser.add_argument(
-        "--planner-hf-token",
-        default=None,
-        help="Hugging Face token for planner (defaults to env HF_TOKEN/HUGGINGFACEHUB_API_TOKEN).",
     )
     parser.add_argument(
         "--display",
@@ -202,8 +197,9 @@ def open_camera_sink(camera_target: str | int | None, fps: float, width: int, he
 
 def overlay_cell(frame: np.ndarray, bbox: Tuple[int, int, int, int]) -> np.ndarray:
     x0, y0, x1, y1 = bbox
+    red_bgr = (0, 0, 255)  # #ff0000 in BGR order for OpenCV
     overlay = frame.copy()
-    cv2.rectangle(overlay, (x0, y0), (x1, y1), (0, 0, 255), thickness=-1)
+    cv2.rectangle(overlay, (x0, y0), (x1, y1), red_bgr, thickness=-1)
     return cv2.addWeighted(overlay, 0.35, frame, 0.65, 0)
 
 
@@ -273,7 +269,6 @@ def main() -> int:
                                 model=args.planner_model,
                                 temperature=args.planner_temperature,
                                 max_output_tokens=args.planner_max_tokens,
-                                hf_token=args.planner_hf_token,
                             )
                             target_bbox = board_state.bbox_for_cell(planner_result.next_action)
                             log_board_change(board_state, planner_result)
