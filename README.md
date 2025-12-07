@@ -89,6 +89,8 @@ A robotic arm that plays Tic-Tac-Toe. It uses a camera to see the board, a YOLOv
             <img src="./media/TeleOperation/Rerun.PNG" style="margin-right: 10px; width: 360px;">
             <img src="./media/TeleOperation/OBS.PNG" style="margin-right: 10px; width: 360px;">
             <img src="./media/TeleOperation/TopView.PNG" style="margin-right: 10px; width: 360px;">
+            <img src="./media/TeleOperation/Gamex4.gif" type="image/gif" style="margin-right: 10px; width: 360px;">
+
 - *Training*
     - The powerful MI300X accelerator enabled fast training with larger batch sizes, significantly speeding up the model's learning process. 
 - *Inference*
