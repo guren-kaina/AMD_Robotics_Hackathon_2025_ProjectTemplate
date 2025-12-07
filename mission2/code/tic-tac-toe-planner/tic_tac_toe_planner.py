@@ -1,15 +1,15 @@
 import argparse
 import json
-import os
 import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Literal
 
-from huggingface_hub import InferenceClient
+import torch
 from obsws_python import ReqClient
 from obsws_python.error import OBSSDKError
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 BoardMark = Literal["O", "X", "empty"]
 
@@ -36,8 +36,7 @@ class PlannerResult:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Plan the next tic-tac-toe move for player 'X' from textual board state "
-            "using a Hugging Face hosted/open LLM."
+            "Plan the next tic-tac-toe move for player 'X' from textual board state using a local LLM."
         )
     )
     parser.add_argument(
@@ -52,8 +51,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--model",
-        default="Qwen/Qwen2.5-7B-Instruct",
-        help="Hugging Face model id for text generation (default: Qwen/Qwen2.5-7B-Instruct).",
+        default="Qwen/Qwen3-4B-Instruct-2507",
+        help="Local model id/path for text generation (default: Qwen/Qwen3-4B-Instruct-2507).",
     )
     parser.add_argument(
         "--temperature",
@@ -66,11 +65,6 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=256,
         help="Max tokens to request from the LLM.",
-    )
-    parser.add_argument(
-        "--hf-token",
-        default=None,
-        help="Hugging Face token (defaults to env HF_TOKEN or HUGGINGFACEHUB_API_TOKEN).",
     )
     parser.add_argument(
         "--obs-host",
@@ -182,8 +176,12 @@ def state_to_prompt_text(state_map: Dict[str, str]) -> str:
     return "\n".join(lines)
 
 
-def resolve_hf_token(cli_token: str | None) -> str | None:
-    return cli_token or os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACEHUB_API_TOKEN")
+def resolve_device() -> torch.device:
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    if torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
 
 
 def parse_plan_response_text(text: str, fallback_state: Dict[str, str], engine_label: str) -> PlannerResult:
@@ -214,41 +212,57 @@ def parse_plan_response_text(text: str, fallback_state: Dict[str, str], engine_l
     raise ValueError("Failed to parse LLM response")
 
 
-def suggest_with_huggingface(
+_MODEL_CACHE: dict[str, tuple[AutoModelForCausalLM, AutoTokenizer]] = {}
+
+
+def get_local_model(model_id: str) -> tuple[AutoModelForCausalLM, AutoTokenizer]:
+    if model_id in _MODEL_CACHE:
+        return _MODEL_CACHE[model_id]
+    device = resolve_device()
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto" if device.type != "cpu" else None)
+    if tokenizer.pad_token_id is None and tokenizer.eos_token_id is not None:
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+    model.eval()
+    _MODEL_CACHE[model_id] = (model, tokenizer)
+    return model, tokenizer
+
+
+def build_prompt(tokenizer: AutoTokenizer, state_map: Dict[str, str]) -> str:
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": state_to_prompt_text(state_map)},
+    ]
+    if hasattr(tokenizer, "apply_chat_template"):
+        return tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    return f"{SYSTEM_PROMPT}\n\n{state_to_prompt_text(state_map)}\n"
+
+
+def suggest_with_transformers(
     state_map: Dict[str, str],
-    model: str,
+    model_id: str,
     temperature: float,
     max_output_tokens: int,
-    hf_token: str | None,
 ) -> PlannerResult:
-    prompt = f"{SYSTEM_PROMPT}\n\n{state_to_prompt_text(state_map)}"
-    client = InferenceClient(model=model, token=hf_token)
-    try:
-        response = client.text_generation(
-            prompt,
-            max_new_tokens=max_output_tokens,
-            temperature=temperature,
-            do_sample=temperature > 0,
-        )
-        return parse_plan_response_text(response, fallback_state=state_map, engine_label="huggingface:text")
-    except Exception as exc_text:
-        # Some models only support chat/completions; try that before failing.
-        try:
-            chat_resp = client.chat_completion(
-                model=model,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": state_to_prompt_text(state_map)},
-                ],
-                max_tokens=max_output_tokens,
-                temperature=temperature,
-            )
-            content = chat_resp.choices[0].message.get("content", "") if chat_resp.choices else ""
-            return parse_plan_response_text(content, fallback_state=state_map, engine_label="huggingface:chat")
-        except Exception as exc_chat:
-            raise RuntimeError(
-                f"Hugging Face inference failed (text err={exc_text}; chat err={exc_chat})."
-            )
+    model, tokenizer = get_local_model(model_id)
+    prompt_text = build_prompt(tokenizer, state_map)
+    inputs = tokenizer(prompt_text, return_tensors="pt")
+    model_device = next(model.parameters()).device
+    inputs = {k: v.to(model_device) for k, v in inputs.items()}
+
+    gen_kwargs = {
+        "max_new_tokens": max_output_tokens,
+        "temperature": temperature,
+        "do_sample": temperature > 0,
+        "pad_token_id": tokenizer.pad_token_id,
+    }
+
+    with torch.no_grad():
+        output_ids = model.generate(**inputs, **gen_kwargs)
+
+    generated_tokens = output_ids[0][inputs["input_ids"].shape[1] :]
+    generated_text = tokenizer.decode(generated_tokens, skip_special_tokens=True)
+    return parse_plan_response_text(generated_text, fallback_state=state_map, engine_label="transformers:local")
 
 
 def generate_plan(
@@ -256,11 +270,9 @@ def generate_plan(
     model: str,
     temperature: float,
     max_output_tokens: int,
-    hf_token: str | None,
 ) -> PlannerResult:
     normalized = normalize_state_map(state_map)
-    token = resolve_hf_token(hf_token)
-    return suggest_with_huggingface(normalized, model, temperature, max_output_tokens, token)
+    return suggest_with_transformers(normalized, model, temperature, max_output_tokens)
 
 
 def apply_obs_next_action(next_action: int, host: str, port: int, timeout: float) -> None:
@@ -299,7 +311,6 @@ def main() -> int:
             model=args.model,
             temperature=args.temperature,
             max_output_tokens=args.max_output_tokens,
-            hf_token=args.hf_token,
         )
     except Exception as exc:
         sys.stderr.write(f"Error: {exc}\n")

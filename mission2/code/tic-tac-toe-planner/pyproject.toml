@@ -1,12 +1,13 @@
 [project]
 name = "tic-tac-toe-planner"
 version = "0.1.0"
-description = "CLI that reads tic-tac-toe board state text/JSON and proposes the next move using a Hugging Face LLM."
+description = "CLI that reads tic-tac-toe board state text/JSON and proposes the next move using a local Transformers LLM."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "huggingface-hub>=0.23",
     "obsws-python>=1.6.0",
+    "torch>=2.2.0",
+    "transformers>=4.43.0",
 ]
 
 [project.scripts]
