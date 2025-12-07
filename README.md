@@ -77,11 +77,9 @@ Tic-tac-toe solver arm that reads the board from a top camera, plans the next mo
             <img src="./media/TeleOperation/Rerun.PNG" style="margin-right: 10px; width: 360px;">
             <img src="./media/TeleOperation/OBS.PNG" style="margin-right: 10px; width: 360px;">
             <img src="./media/TeleOperation/TopView.PNG" style="margin-right: 10px; width: 360px;">
-            
-
 - *Training*
+    - The powerful MI300X accelerator enabled fast training with larger batch sizes, significantly speeding up the model's learning process. 
 - *Inference*
-    - *<Image/video of inference eval>*
 
 ### 4. Ease of use
 - *How generalizable is your implementation across tasks or environments?*
@@ -93,8 +91,20 @@ Tic-tac-toe solver arm that reads the board from a top camera, plans the next mo
 
 - *Link to a video of your robot performing the task*
 - *URL of your dataset in Hugging Face*
+    - https://huggingface.co/datasets/guren-kaina/tic-tac-toe-1
+    - https://huggingface.co/datasets/guren-kaina/tic-tac-toe-2
+    - https://huggingface.co/datasets/guren-kaina/tic-tac-toe-3
+    - https://huggingface.co/datasets/guren-kaina/tic-tac-toe-4
 - *URL of your model in Hugging Face*
+    - https://huggingface.co/guren-kaina/tic-tac-toe-1
+    - https://huggingface.co/guren-kaina/act-tic-tac-toe-2
+    - https://huggingface.co/guren-kaina/pi05_tic-tac-toe-2
+    - https://huggingface.co/guren-kaina/act-tic-tac-toe-3
+    - https://huggingface.co/guren-kaina/pi05_tic-tac-toe-3
+    - https://huggingface.co/guren-kaina/act-tic-tac-toe-4
+    - https://huggingface.co/guren-kaina/pi05_tic-tac-toe-4
 - *Link to a blog post describing your work*
+    - soon
 
 ## Code submission
 
