@@ -59,8 +59,10 @@ Tic-tac-toe solver arm that reads the board from a top camera, plans the next mo
 - *Real world application of your mission*
 
 ### 2. Creativity
-- *What is novel or unique in your approach?*
-- *Innovation in design, methodology, or application*
+- Robust perception: YOLOv8 detects the 3x3 grid and cell states (X/O/empty) from mostly synthetic data with a few real labels, so camera angle or board design changes can be adapted quickly.
+- Strategy via text-only LLM: the board is serialized to text and a small local LLM plans the next move; difficulty/style can be prompted without any vision-language model.
+- Simple control handoff: the pipeline overlays the chosen cell as a red mask on the live feed; the arm only needs to follow that mask to place a piece, even if the board position shifts.
+- Generalizable architecture: the same grid-detect → text-plan → overlay pattern can be retargeted to other small-board games by swapping the synthetic template and prompt.
 
 ### 3. Technical implementations
 - *Teleoperation / Dataset capture*
