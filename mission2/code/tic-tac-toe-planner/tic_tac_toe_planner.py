@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass
@@ -7,6 +8,8 @@ from pathlib import Path
 from typing import Dict, Literal
 
 import torch
+from huggingface_hub import InferenceClient
+from requests.exceptions import HTTPError
 from obsws_python import ReqClient
 from obsws_python.error import OBSSDKError
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -36,7 +39,7 @@ class PlannerResult:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Plan the next tic-tac-toe move for player 'X' from textual board state using a local LLM."
+            "Plan the next tic-tac-toe move for player 'X' from textual board state using a local or remote Hugging Face LLM."
         )
     )
     parser.add_argument(
@@ -65,6 +68,26 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=256,
         help="Max tokens to request from the LLM.",
+    )
+    parser.add_argument(
+        "--use-hf-remote",
+        action="store_true",
+        help="Call the Hugging Face Inference API instead of local transformers.",
+    )
+    parser.add_argument(
+        "--hf-api-token",
+        default=None,
+        help="Hugging Face token for remote inference (defaults to HF_TOKEN env).",
+    )
+    parser.add_argument(
+        "--hf-token",
+        default=None,
+        help="Alias for --hf-api-token (also reads HUGGINGFACEHUB_API_TOKEN).",
+    )
+    parser.add_argument(
+        "--hf-endpoint-url",
+        default=None,
+        help="Optional custom Inference Endpoint URL. If unset, the hosted model inference API is used.",
     )
     parser.add_argument(
         "--obs-host",
@@ -212,6 +235,23 @@ def parse_plan_response_text(text: str, fallback_state: Dict[str, str], engine_l
     raise ValueError("Failed to parse LLM response")
 
 
+def resolve_hf_token(cli_token: str | None, cli_alias: str | None) -> str | None:
+    return cli_token or cli_alias or os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACEHUB_API_TOKEN")
+
+def _normalize_hf_model_target(model_or_url: str) -> str:
+    """
+    Accepts either a repo id (e.g. Qwen/Qwen2.5-7B-Instruct) or a full URL.
+    If a URL is provided (api-inference or router), extract the repo id so InferenceClient can handle routing.
+    """
+    url_prefixes = [
+        "https://api-inference.huggingface.co/models/",
+        "https://router.huggingface.co/models/",
+    ]
+    for prefix in url_prefixes:
+        if model_or_url.startswith(prefix):
+            return model_or_url[len(prefix) :].strip("/")
+    return model_or_url.strip("/")
+
 _MODEL_CACHE: dict[str, tuple[AutoModelForCausalLM, AutoTokenizer]] = {}
 
 
@@ -228,12 +268,12 @@ def get_local_model(model_id: str) -> tuple[AutoModelForCausalLM, AutoTokenizer]
     return model, tokenizer
 
 
-def build_prompt(tokenizer: AutoTokenizer, state_map: Dict[str, str]) -> str:
+def build_prompt(tokenizer: AutoTokenizer | None, state_map: Dict[str, str]) -> str:
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": state_to_prompt_text(state_map)},
     ]
-    if hasattr(tokenizer, "apply_chat_template"):
+    if tokenizer is not None and hasattr(tokenizer, "apply_chat_template"):
         return tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     return f"{SYSTEM_PROMPT}\n\n{state_to_prompt_text(state_map)}\n"
 
@@ -265,13 +305,70 @@ def suggest_with_transformers(
     return parse_plan_response_text(generated_text, fallback_state=state_map, engine_label="transformers:local")
 
 
+def suggest_with_hf_inference(
+    state_map: Dict[str, str],
+    model_id: str,
+    temperature: float,
+    max_output_tokens: int,
+    api_token: str | None,
+    endpoint_url: str | None,
+) -> PlannerResult:
+    # Use repo id when a URL is provided so the client routes via the default backend (router.huggingface.co).
+    target = _normalize_hf_model_target(endpoint_url or model_id)
+    client = InferenceClient(model=target, token=api_token)
+    prompt_text = build_prompt(None, state_map)
+    try:
+        generated_text = client.text_generation(
+            prompt_text,
+            max_new_tokens=max_output_tokens,
+            temperature=temperature,
+            do_sample=temperature > 0,
+            return_full_text=False,
+        )
+        return parse_plan_response_text(generated_text, fallback_state=state_map, engine_label="huggingface:text")
+    except HTTPError as text_exc:
+        if text_exc.response is not None and text_exc.response.status_code == 404:
+            raise RuntimeError(
+                f"Hugging Face model '{target}' not found. Check the repo id or use --hf-endpoint-url for a custom endpoint."
+            ) from text_exc
+        raise
+    except Exception as text_exc:
+        # Some endpoints expose only chat; try chat completion before failing.
+        try:
+            chat_resp = client.chat_completion(
+                model=target,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": state_to_prompt_text(state_map)},
+                ],
+                max_tokens=max_output_tokens,
+                temperature=temperature,
+            )
+            content = chat_resp.choices[0].message.get("content", "") if chat_resp.choices else ""
+            return parse_plan_response_text(content, fallback_state=state_map, engine_label="huggingface:chat")
+        except HTTPError as chat_exc:
+            if chat_exc.response is not None and chat_exc.response.status_code == 404:
+                raise RuntimeError(
+                    f"Hugging Face model '{target}' not found. Check the repo id or use --hf-endpoint-url for a custom endpoint."
+                ) from chat_exc
+            raise RuntimeError(f"Hugging Face inference failed (text err={text_exc}; chat err={chat_exc}).")
+        except Exception as chat_exc:
+            raise RuntimeError(f"Hugging Face inference failed (text err={text_exc}; chat err={chat_exc}).")
+
+
 def generate_plan(
     state_map: Dict[str, str],
     model: str,
     temperature: float,
     max_output_tokens: int,
+    *,
+    use_remote: bool = False,
+    hf_token: str | None = None,
+    hf_endpoint: str | None = None,
 ) -> PlannerResult:
     normalized = normalize_state_map(state_map)
+    if use_remote:
+        return suggest_with_hf_inference(normalized, model, temperature, max_output_tokens, hf_token, hf_endpoint)
     return suggest_with_transformers(normalized, model, temperature, max_output_tokens)
 
 
@@ -305,12 +402,19 @@ def main() -> int:
         sys.stderr.write(f"Failed to load board state: {exc}\n")
         return 1
 
+    hf_token = resolve_hf_token(args.hf_api_token, args.hf_token)
+    if args.use_hf_remote and not hf_token:
+        sys.stderr.write("Warning: --use-hf-remote without HF_TOKEN/HUGGINGFACEHUB_API_TOKEN may fail for private models.\n")
+
     try:
         result = generate_plan(
             state_map=state_map,
             model=args.model,
             temperature=args.temperature,
             max_output_tokens=args.max_output_tokens,
+            use_remote=args.use_hf_remote,
+            hf_token=hf_token,
+            hf_endpoint=args.hf_endpoint_url,
         )
     except Exception as exc:
         sys.stderr.write(f"Error: {exc}\n")
