@@ -8,6 +8,11 @@
 **Summary**
 Tic-tac-toe solver arm that reads the board from a top camera, plans the next move for player **X**, and overlays the target cell for the SO-Arm 101 to execute. We fine-tuned a lightweight YOLOv8n with mostly synthetic grids (plus optional real labels) in `mission2/code/tic_tac_toe_overlay` to classify each cell as empty/O/X. The text-only planner in `mission2/code/tic-tac-toe-planner` uses a local LLM (default `Qwen/Qwen3-4B-Instruct-2507`) to choose the move, avoiding heavy VLA reasoning. `mission2/code/ttt-pipeline` stitches the pieces: capture frames, detect the 3x3 board, call the planner when the board changes, paint the chosen cell, and stream the masked video to a virtual camera. Hardware follows the shared slide deck: top/side/gripper cameras, top light, AMD laptop, SO-Arm 101, and a 3D-printed board fixture.
 
+<img src="./media/Slide/Hardware.png">
+<img src="./media/Slide/DataCollection.png">
+<img src="./media/Slide/Inference.png">
+
+
 **How To**: reproduce end-to-end
 1. Set up dependencies (Python 3.10+). Using `uv`:
    ```bash
