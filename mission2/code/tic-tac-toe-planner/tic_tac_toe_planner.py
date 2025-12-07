@@ -1,87 +1,81 @@
 import argparse
 import json
-import mimetypes
 import os
+import re
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Literal
 
-import google.generativeai as genai
+from huggingface_hub import InferenceClient
 from obsws_python import ReqClient
 from obsws_python.error import OBSSDKError
-from google.ai.generativelanguage import Schema, Type
 
-BoardMark = Literal["◯", "×", "□"]
+BoardMark = Literal["O", "X", "empty"]
 
-
-SYSTEM_INSTRUCTIONS = """
-You extract tic-tac-toe state from an image and propose the next move for player "×".
-- Board cells are labeled 1-9 left-to-right, top-to-bottom.
-- Markers: "◯", "×", "□" ("□" means empty).
-- You always act as player "×". Only propose an empty cell as the next move.
-- Return JSON only with:
-  - current_status: mapping of cell ids ("1"-"9") to one of the markers.
-  - next_action: integer 1-9 indicating the best move for the side to play.
-- Choose next_action that wins if possible, otherwise blocks opponent, otherwise any empty cell.
-- Do not include explanations or extra keys.
-"""
-
-DEFAULT_MODEL = "gemini-2.0-flash-lite-preview-02-05"
-
-RESPONSE_SCHEMA = Schema(
-    type_=Type.OBJECT,
-    properties={
-        "current_status": Schema(
-            type_=Type.OBJECT,
-            properties={
-                str(i): Schema(type_=Type.STRING, enum=["◯", "×", "□"])
-                for i in range(1, 10)
-            },
-            required=[str(i) for i in range(1, 10)],
-        ),
-        # Gemini does not support integer enums; leave unconstrained and validate client-side.
-        "next_action": Schema(type_=Type.INTEGER, description="Cell id (1-9) where × should play."),
-    },
-    required=["current_status", "next_action"],
-)
+SYSTEM_PROMPT = """
+You plan tic-tac-toe for player "X" using ONLY the provided cell states.
+- Cells are 1-9, left-to-right then top-to-bottom.
+- States are one of: O, X, empty.
+- Always choose an empty cell. Prefer a winning move, else block, else any empty cell.
+- Respond with minified JSON only: {"current_status": {"1": "...", ...}, "next_action": <int>}.
+""".strip()
 
 OBS_SCENE_NAME = "シーン"
 CELL_SOURCE_NAMES = [str(i) for i in range(1, 10)]
 
 
+@dataclass
+class PlannerResult:
+    current_status: Dict[str, str]
+    next_action: int
+    engine: str
+    raw_response: str | None = None
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Infer tic-tac-toe board state from an image using Gemini Flash Lite 2.5 "
-            "and propose the next move."
+            "Plan the next tic-tac-toe move for player 'X' from textual board state "
+            "using a Hugging Face hosted/open LLM."
         )
     )
     parser.add_argument(
-        "-i",
-        "--image",
-        required=True,
-        help="Path to the tic-tac-toe board image.",
+        "--state-json",
+        help="Path to board state JSON exported by tic_tac_toe_overlay (cells + bbox).",
     )
     parser.add_argument(
-        "--api-key",
-        default=os.getenv("GOOGLE_API_KEY"),
-        help="Google API key. Defaults to GOOGLE_API_KEY env var.",
+        "--state",
+        help=(
+            "Inline board state string, e.g. '1=O,2=empty,3=X,4=empty,5=empty,6=empty,7=empty,8=empty,9=empty'."
+        ),
     )
     parser.add_argument(
         "--model",
-        default=DEFAULT_MODEL,
-        help=f"Gemini model to use (default: {DEFAULT_MODEL}).",
+        default="Qwen/Qwen2.5-7B-Instruct",
+        help="Hugging Face model id for text generation (default: Qwen/Qwen2.5-7B-Instruct).",
+    )
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=0.0,
+        help="Sampling temperature for the LLM (defaults to 0.0).",
     )
     parser.add_argument(
         "--max-output-tokens",
         type=int,
-        default=512,
-        help="Upper bound for response tokens.",
+        default=256,
+        help="Max tokens to request from the LLM.",
+    )
+    parser.add_argument(
+        "--hf-token",
+        default=None,
+        help="Hugging Face token (defaults to env HF_TOKEN or HUGGINGFACEHUB_API_TOKEN).",
     )
     parser.add_argument(
         "--obs-host",
-        default="localhost",
-        help="OBS websocket host to apply the suggested move (if omitted, OBS is not updated).",
+        default=None,
+        help="OBS websocket host to apply the suggested move (omit to skip OBS update).",
     )
     parser.add_argument(
         "--obs-port",
@@ -98,59 +92,175 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def build_prompt() -> str:
-    return SYSTEM_INSTRUCTIONS.strip()
+def normalize_mark(mark: str) -> BoardMark:
+    m = mark.strip().lower()
+    mapping = {
+        "◯": "o",
+        "○": "o",
+        "o": "o",
+        "0": "o",
+        "×": "x",
+        "✕": "x",
+        "x": "x",
+        "□": "empty",
+        "empty": "empty",
+        "": "empty",
+        "-": "empty",
+        "_": "empty",
+    }
+    mapped = mapping.get(m, m)
+    if mapped not in {"o", "x", "empty"}:
+        raise ValueError(f"Unsupported marker: {mark}")
+    if mapped == "o":
+        return "O"
+    if mapped == "x":
+        return "X"
+    return "empty"
 
 
-def load_image_part(image_path: Path):
-    if not image_path.is_file():
-        raise FileNotFoundError(f"Image not found: {image_path}")
-    mime_type, _ = mimetypes.guess_type(image_path)
-    if mime_type is None:
-        mime_type = "application/octet-stream"
-    data = image_path.read_bytes()
-    # gemini image input can be passed as a blob dict
-    return {"mime_type": mime_type, "data": data}
+def normalize_state_map(state_map: Dict[str, str]) -> Dict[str, str]:
+    normalized: Dict[str, str] = {}
+    for idx in range(1, 10):
+        key = str(idx)
+        raw_val = state_map.get(key)
+        if raw_val is None and str(idx) not in state_map and idx in state_map:  # type: ignore
+            raw_val = state_map[idx]  # type: ignore
+        if raw_val is None:
+            raise ValueError(f"Missing cell {key} in board state.")
+        normalized[key] = normalize_mark(str(raw_val))
+    return normalized
 
 
-def validate_response(payload: Dict[str, object]) -> None:
-    if "current_status" not in payload or "next_action" not in payload:
-        raise ValueError("Response missing required keys.")
-    current_status = payload["current_status"]
-    if not isinstance(current_status, dict):
-        raise ValueError("current_status must be an object mapping.")
-    for key, value in current_status.items():
-        if key not in {str(i) for i in range(1, 10)}:
-            raise ValueError(f"Invalid cell id: {key}")
-        if value not in {"◯", "×", "□"}:
-            raise ValueError(f"Invalid board marker: {value}")
-    next_action = payload["next_action"]
-    if not isinstance(next_action, int) or not (1 <= next_action <= 9):
-        raise ValueError("next_action must be an integer between 1 and 9.")
+def load_state_from_json(json_path: Path) -> Dict[str, str]:
+    data = json.loads(json_path.read_text())
+    if not isinstance(data, dict):
+        raise ValueError("Board state JSON must be an object.")
+    if "state_map" in data:
+        return normalize_state_map({str(k): v for k, v in data["state_map"].items()})
+    if "cells" in data:
+        cell_map: Dict[str, str] = {}
+        for cell in data["cells"]:
+            cid = cell.get("id") or cell.get("cell_id") or cell.get("index")
+            if cid is None:
+                continue
+            label = cell.get("label") or cell.get("state")
+            if label is None:
+                continue
+            cell_map[str(cid)] = label
+        if cell_map:
+            return normalize_state_map(cell_map)
+    if all(str(k) in {str(i) for i in range(1, 10)} for k in data.keys()):
+        return normalize_state_map({str(k): v for k, v in data.items()})
+    raise ValueError("Unsupported JSON format for board state.")
+
+
+def parse_state_string(text: str) -> Dict[str, str]:
+    pieces = re.split(r"[\n,]", text)
+    state_map: Dict[str, str] = {}
+    for piece in pieces:
+        chunk = piece.strip()
+        if not chunk:
+            continue
+        if ":" in chunk:
+            key, val = chunk.split(":", 1)
+        elif "=" in chunk:
+            key, val = chunk.split("=", 1)
+        else:
+            parts = chunk.split()
+            if len(parts) != 2:
+                raise ValueError(f"Cannot parse chunk '{chunk}' in board state string.")
+            key, val = parts
+        state_map[str(int(key))] = val.strip()
+    return normalize_state_map(state_map)
+
+
+def state_to_prompt_text(state_map: Dict[str, str]) -> str:
+    lines = ["Board state:"]
+    for idx in range(1, 10):
+        lines.append(f"{idx}: {state_map[str(idx)]}")
+    lines.append("You are X. Respond with JSON only.")
+    return "\n".join(lines)
+
+
+def resolve_hf_token(cli_token: str | None) -> str | None:
+    return cli_token or os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACEHUB_API_TOKEN")
+
+
+def parse_plan_response_text(text: str, fallback_state: Dict[str, str], engine_label: str) -> PlannerResult:
+    cleaned = text.strip()
+    candidates = [cleaned]
+    if cleaned.startswith("```"):
+        candidates.append(cleaned.strip("`"))
+        candidates.append(cleaned.replace("```json", "").replace("```", "").strip())
+    for candidate in candidates:
+        try:
+            payload = json.loads(candidate)
+            status = payload.get("current_status", fallback_state)
+            next_action = payload.get("next_action")
+            status_map = normalize_state_map(status)
+            if not isinstance(next_action, int) or not (1 <= next_action <= 9):
+                raise ValueError("next_action must be int 1-9")
+            return PlannerResult(current_status=status_map, next_action=next_action, engine=engine_label, raw_response=text)
+        except Exception:
+            continue
+    digit_match = re.search(r"([1-9])", cleaned)
+    if digit_match:
+        return PlannerResult(
+            current_status=fallback_state,
+            next_action=int(digit_match.group(1)),
+            engine=engine_label,
+            raw_response=text,
+        )
+    raise ValueError("Failed to parse LLM response")
+
+
+def suggest_with_huggingface(
+    state_map: Dict[str, str],
+    model: str,
+    temperature: float,
+    max_output_tokens: int,
+    hf_token: str | None,
+) -> PlannerResult:
+    prompt = f"{SYSTEM_PROMPT}\n\n{state_to_prompt_text(state_map)}"
+    client = InferenceClient(model=model, token=hf_token)
+    try:
+        response = client.text_generation(
+            prompt,
+            max_new_tokens=max_output_tokens,
+            temperature=temperature,
+            do_sample=temperature > 0,
+        )
+        return parse_plan_response_text(response, fallback_state=state_map, engine_label="huggingface:text")
+    except Exception as exc_text:
+        # Some models only support chat/completions; try that before failing.
+        try:
+            chat_resp = client.chat_completion(
+                model=model,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": state_to_prompt_text(state_map)},
+                ],
+                max_tokens=max_output_tokens,
+                temperature=temperature,
+            )
+            content = chat_resp.choices[0].message.get("content", "") if chat_resp.choices else ""
+            return parse_plan_response_text(content, fallback_state=state_map, engine_label="huggingface:chat")
+        except Exception as exc_chat:
+            raise RuntimeError(
+                f"Hugging Face inference failed (text err={exc_text}; chat err={exc_chat})."
+            )
 
 
 def generate_plan(
-    image_path: Path, api_key: str, model_name: str, max_output_tokens: int
-) -> Dict[str, object]:
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(
-        model_name=model_name,
-        generation_config={
-            "response_mime_type": "application/json",
-            "response_schema": RESPONSE_SCHEMA,
-            "max_output_tokens": max_output_tokens,
-        },
-    )
-    prompt = build_prompt()
-    image_part = load_image_part(image_path)
-    response = model.generate_content([prompt, image_part])
-    text = response.text
-    try:
-        parsed = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"Failed to parse JSON response: {exc}") from exc
-    validate_response(parsed)
-    return parsed
+    state_map: Dict[str, str],
+    model: str,
+    temperature: float,
+    max_output_tokens: int,
+    hf_token: str | None,
+) -> PlannerResult:
+    normalized = normalize_state_map(state_map)
+    token = resolve_hf_token(hf_token)
+    return suggest_with_huggingface(normalized, model, temperature, max_output_tokens, token)
 
 
 def apply_obs_next_action(next_action: int, host: str, port: int, timeout: float) -> None:
@@ -170,26 +280,46 @@ def apply_obs_next_action(next_action: int, host: str, port: int, timeout: float
 
 def main() -> int:
     args = parse_args()
-    if not args.api_key:
-        sys.stderr.write("Google API key is required (use --api-key or set GOOGLE_API_KEY).\n")
+    if not args.state_json and not args.state:
+        sys.stderr.write("Please provide --state-json exported by overlay or --state string.\n")
         return 1
+
     try:
-        plan = generate_plan(
-            image_path=Path(args.image),
-            api_key=args.api_key,
-            model_name=args.model,
+        if args.state_json:
+            state_map = load_state_from_json(Path(args.state_json))
+        else:
+            state_map = parse_state_string(args.state)
+    except Exception as exc:
+        sys.stderr.write(f"Failed to load board state: {exc}\n")
+        return 1
+
+    try:
+        result = generate_plan(
+            state_map=state_map,
+            model=args.model,
+            temperature=args.temperature,
             max_output_tokens=args.max_output_tokens,
+            hf_token=args.hf_token,
         )
     except Exception as exc:
         sys.stderr.write(f"Error: {exc}\n")
         return 1
-    sys.stdout.write(json.dumps(plan, ensure_ascii=False, indent=2))
+
+    payload = {
+        "current_status": result.current_status,
+        "next_action": result.next_action,
+        "engine": result.engine,
+    }
+    if result.raw_response:
+        payload["raw_response"] = result.raw_response
+    sys.stdout.write(json.dumps(payload, ensure_ascii=False, indent=2))
     sys.stdout.write("\n")
+
     if args.obs_host:
         try:
-            apply_obs_next_action(plan["next_action"], args.obs_host, args.obs_port, args.obs_timeout)
+            apply_obs_next_action(result.next_action, args.obs_host, args.obs_port, args.obs_timeout)
             sys.stdout.write(
-                f"OBS updated: scene '{OBS_SCENE_NAME}' shows source '{plan['next_action']}' "
+                f"OBS updated: scene '{OBS_SCENE_NAME}' shows source '{result.next_action}' "
                 "and hides the other cells.\n"
             )
         except Exception as exc:

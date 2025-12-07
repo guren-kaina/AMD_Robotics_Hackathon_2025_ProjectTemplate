@@ -1,11 +1,11 @@
 [project]
 name = "tic-tac-toe-planner"
 version = "0.1.0"
-description = "CLI that reads a tic-tac-toe board image, infers the state, and proposes the next move using Gemini Flash Lite 2.5."
+description = "CLI that reads tic-tac-toe board state text/JSON and proposes the next move using a Hugging Face LLM."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "google-generativeai>=0.8.3",
+    "huggingface-hub>=0.23",
     "obsws-python>=1.6.0",
 ]
 
