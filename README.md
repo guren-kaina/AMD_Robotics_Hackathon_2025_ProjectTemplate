@@ -1,5 +1,7 @@
 # AMD_Robotics_Hackathon_2025_Kaina-TTT
 
+<img src="./media/TeleOperation/Gamex4.gif">
+
 ## Team Information
 **Team:** Kaina
 
