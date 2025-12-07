@@ -48,6 +48,11 @@ Tic-tac-toe solver arm that reads the board from a top camera, plans the next mo
    ```
    The script polls the board every `--interval` seconds, calls the planner when the state changes, masks the chosen cell in red, and pipes frames to `/dev/video12` via `ffmpeg` (edit the hard-coded device in `main.py` if needed). Use `--display` to preview locally; press `q` to quit.
 
+5. Copy Makefile to exector home. and run π0.5 inference
+    ```
+    make inference-pi
+    ```
+
 ## Submission Details
 
 ### 1. Mission Description
@@ -59,7 +64,21 @@ Tic-tac-toe solver arm that reads the board from a top camera, plans the next mo
 
 ### 3. Technical implementations
 - *Teleoperation / Dataset capture*
-    - *<Image/video of teleoperation or dataset capture>*
+    - Robotics ML Model's Task is "Pick up 3d printed figure and put on the target place".
+    - Areas of Focus for Data Collection
+        - Only see laptop rerun view (camera view) in order to get efficient information for robots.
+        - Pick up and place Figure Carefully.
+        - To avoid mixing learning data and reducing accuracy, move directly and accurately to the target area.
+        - Add Target Bounding Box for Inference using OBS tool.
+            <video controls width="360px">
+                <source src="./media/TeleOperation/Teleop.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            <img src="./media/TeleOperation/Rerun.PNG" style="margin-right: 10px; width: 360px;">
+            <img src="./media/TeleOperation/OBS.PNG" style="margin-right: 10px; width: 360px;">
+            <img src="./media/TeleOperation/TopView.PNG" style="margin-right: 10px; width: 360px;">
+            
+
 - *Training*
 - *Inference*
     - *<Image/video of inference eval>*
