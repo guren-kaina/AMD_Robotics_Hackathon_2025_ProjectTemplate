@@ -56,7 +56,9 @@ class BoardState:
         return {str(cell.id): cell.label for cell in self.cells}
 
     def compact_string(self) -> str:
-        entries = [f"{idx}={self.state_map.get(str(idx), 'unknown')}" for idx in range(1, 10)]
+        entries = [
+            f"{idx}={self.state_map.get(str(idx), 'unknown')}" for idx in range(1, 10)
+        ]
         return ",".join(entries)
 
     def pretty_text(self) -> str:
@@ -250,7 +252,9 @@ def generate_synthetic_sample(
         left, top, right, bottom = cell_boxes[idx]
         sampled = None
         for _ in range(5):
-            sampled = sample_center(left, top, right, bottom, size_range[1], pad_scale=1.0)  # extra padding for X
+            sampled = sample_center(
+                left, top, right, bottom, size_range[1], pad_scale=1.0
+            )  # extra padding for X
             if sampled is not None:
                 break
         if sampled is None:

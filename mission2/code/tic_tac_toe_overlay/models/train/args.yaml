@@ -10,7 +10,7 @@ imgsz: 640
 save: true
 save_period: -1
 cache: false
-device: mps
+device: '0'
 workers: 8
 project: models
 name: train
@@ -103,4 +103,4 @@ auto_augment: randaugment
 erasing: 0.4
 cfg: null
 tracker: botsort.yaml
-save_dir: /Users/zoncoen/dev/src/github.com/guren-kaina/AMD_Robotics_Hackathon_2025_ProjectTemplate/mission2/code/tic_tac_toe_overlay/models/train
+save_dir: /workspace/yolo-train/models/train

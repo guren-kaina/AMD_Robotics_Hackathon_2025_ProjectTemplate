@@ -16,3 +16,17 @@
 - Improve real-image accuracy: add more real labels; tweak synthetic color/contrast/occlusion.
 - Tune thresholds/epochs based on saved inference outputs.
 - Use `label_tool.py` (OpenCV GUI) for efficient labeling; includes Undo/navigation.
+- Hugging Face publication: if sharing model (`models/train/weights/best.pt`) and data (`real/`, synthetic generation scripts), confirm license/PII, optionally note heavy artifacts, and describe training setup/class schema/inference steps/permissions in README. Publish with `uvx hf repo create` → `git push`.
+
+## License Notes
+- Library: Ultralytics YOLOv8 is AGPL-3.0 (SaaS/distribution requires AGPL source disclosure; commercial closed use needs a commercial license).
+- If publishing this repo to Hugging Face: keep code under AGPL-3.0 unless you hold a commercial Ultralytics license (state it if so).
+- Model weights/dataset licenses are independent: open use → CC-BY-4.0; if you want restrictions → CC-BY-NC-4.0, etc. Real images confirmed no PII/portraits.
+- In README/model card/data card, state permissions/restrictions, credit, training settings, class schema, and AGPL obligation from Ultralytics (or note commercial license).
+
+## Hugging Face tasks (minimal model/data only)
+- Vars: `HF_STAGE=/tmp/hf_release` (staging), `HF_MODEL_REPO`, `HF_DATASET_REPO`. Run via `tic_tac_toe_overlay/Makefile` (or `make -C tic_tac_toe_overlay ...`).
+- Steps:
+  - Model: `make hf-model-stage` clones existing HF repo, uses `MODEL_CARD.md` as README, copies `best.pt`, sets LICENSE to CC-BY-4.0. `.gitattributes` is assumed pre-configured (LFS/Xet as needed).
+  - Data: `make hf-dataset-stage` clones existing dataset repo, uses `DATASET_CARD.md` as README, copies `real/images` and `real/labels`, generates `dataset.parquet` via `export_parquet.py` (needs pyarrow), sets LICENSE to CC-BY-4.0. `.gitattributes` is assumed pre-configured.
+  - Push: `make hf-model-push` / `make hf-dataset-push` (requires `uvx hf login`; assumes repos already exist and LFS hooks installed). Targets run `git lfs install --local || true` then commit/push with `HF_HUB_ENABLE_HF_TRANSFER=1 git push ...` for faster uploads (per HF hub guide). Code stays private; only model/data repos are published.
